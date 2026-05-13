@@ -4,7 +4,7 @@ import bwipjs from 'bwip-js';
 export const STICKER_W = 1200;
 export const STICKER_H = 1800;
 export const LABEL_INSET = 46;      // 12 units × 3.82 scale — gap between label and sticker edge
-export const LABEL_H = 270;         // canvas px — floating white label height
+export const LABEL_H = 171;         // canvas px — floating white label height
 export const LABEL_PAD = 38;        // 10 units × 3.82 — inner padding inside the label
 export const TEXT_AREA_W = 650;     // 170 units × 3.82 — reserved width for art name / size
 export const BARCODE_ZONE_W = 382;  // 100 units × 3.82 — reserved width for barcode (always held)

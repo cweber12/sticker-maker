@@ -1,3 +1,11 @@
+## Agent conventions
+
+### After every change
+
+Always draft a commit message for the user to review before finishing. Use the format defined in `.github/copilot-instructions.md`.
+
+---
+
 ## Agent skills
 
 ### Issue tracker
