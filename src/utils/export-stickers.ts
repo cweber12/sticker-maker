@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import type { StickerRow, LayoutConfig } from '@/types';
 import { renderStickerCanvas, STICKER_W, STICKER_H, DEFAULT_LAYOUT } from './render-sticker';
+import { registerPdfFonts } from './pdf-fonts';
 
 const DPI = 300;
 const STICKER_W_IN = STICKER_W / DPI; // 4 inches
@@ -12,30 +13,28 @@ const pxToIn = (px: number) => px / DPI;
 /** Convert canvas px → typographic points (jsPDF font size unit). */
 const pxToPt = (px: number) => (px * 72) / DPI;
 
-/**
- * jsPDF built-in font fallbacks for the editable text layer.
- * Custom fonts (Baskerville Display PT, Tw Cen MT) require embedded TTFs
- * via pdf.addFileToVFS + pdf.addFont; see jsPDF docs to upgrade later.
- */
-const PDF_NAME_FONT = { family: 'times', style: 'normal' as const };
-const PDF_SIZE_FONT = { family: 'helvetica', style: 'normal' as const };
-
 /** Min editable font size (pt) before giving up shrinking. */
 const PDF_FONT_FLOOR_PT = 4;
 
 /**
- * Shrinks font size until text fits inside maxWidthIn, respecting current charSpace.
- * Returns the final pt size that fit (>= PDF_FONT_FLOOR_PT).
+ * Shrinks font size until text fits inside maxWidthIn.
+ *
+ * IMPORTANT: jsPDF's getTextWidth() does NOT account for the charSpace
+ * set via setCharSpace(). With 12px char-spacing on uppercase art names
+ * that's a huge under-measurement, so we add it back manually:
+ *   actualWidth = getTextWidth(text) + (text.length - 1) * charSpaceIn
  */
 function fitPdfFontSize(
   pdf: jsPDF,
   text: string,
   maxWidthIn: number,
-  startSizePt: number
+  startSizePt: number,
+  charSpaceIn: number
 ): number {
   let size = startSizePt;
   pdf.setFontSize(size);
-  while (size > PDF_FONT_FLOOR_PT && pdf.getTextWidth(text) > maxWidthIn) {
+  const spacing = Math.max(0, text.length - 1) * charSpaceIn;
+  while (size > PDF_FONT_FLOOR_PT && pdf.getTextWidth(text) + spacing > maxWidthIn) {
     size -= 1;
     pdf.setFontSize(size);
   }
@@ -152,6 +151,10 @@ export async function exportStickerPdfs(
     // but ~2-3× faster for full-page sticker images.
     pdf.addImage(dataUrl, 'PNG', 0, 0, STICKER_W_IN, STICKER_H_IN, undefined, 'FAST');
 
+    // Register embedded fonts (Baskerville Display PT / Tw Cen MT) if their
+    // .ttf files are present in public/fonts/. Falls back to Times/Helvetica.
+    const { nameFamily, sizeFamily } = await registerPdfFonts(pdf);
+
     // --- Editable text overlay (selectable in PDF viewers) ---
     // Geometry mirrors render-sticker.ts so the text lands inside the label.
     const labelXIn = pxToIn(layout.labelInset);
@@ -161,20 +164,26 @@ export async function exportStickerPdfs(
     const textAreaWIn = pxToIn(layout.textAreaWidth);
 
     // Art name — uppercase, wide letter-spacing (mirrors canvas '12px').
-    pdf.setFont(PDF_NAME_FONT.family, PDF_NAME_FONT.style);
+    pdf.setFont(nameFamily, 'normal');
     pdf.setTextColor(17, 17, 17); // #111
-    pdf.setCharSpace(pxToIn(12));
+    const nameCharSpaceIn = pxToIn(12);
+    pdf.setCharSpace(nameCharSpaceIn);
     const artNameUpper = row.artName.toUpperCase();
-    const namePt = fitPdfFontSize(pdf, artNameUpper, textAreaWIn, pxToPt(layout.nameFontSize));
+    const namePt = fitPdfFontSize(
+      pdf, artNameUpper, textAreaWIn, pxToPt(layout.nameFontSize), nameCharSpaceIn
+    );
     const namePxAtFit = (namePt * DPI) / 72; // convert back to canvas px for baseline math
     const nameBaselineIn = labelYIn + pxToIn(layout.labelPadding + Math.round(namePxAtFit * 0.72));
     pdf.text(artNameUpper, textXIn, nameBaselineIn, { baseline: 'alphabetic' });
 
     // Size — normal case, has descenders.
-    pdf.setFont(PDF_SIZE_FONT.family, PDF_SIZE_FONT.style);
+    pdf.setFont(sizeFamily, 'normal');
     pdf.setTextColor(68, 68, 68); // #444
-    pdf.setCharSpace(pxToIn(1));
-    const sizePt = fitPdfFontSize(pdf, row.size, textAreaWIn, pxToPt(layout.sizeFontSize));
+    const sizeCharSpaceIn = pxToIn(1);
+    pdf.setCharSpace(sizeCharSpaceIn);
+    const sizePt = fitPdfFontSize(
+      pdf, row.size, textAreaWIn, pxToPt(layout.sizeFontSize), sizeCharSpaceIn
+    );
     const sizePxAtFit = (sizePt * DPI) / 72;
     const sizeBaselineIn =
       labelYIn + labelHIn - pxToIn(layout.labelPadding + Math.round(sizePxAtFit * 0.20));

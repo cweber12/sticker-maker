@@ -21,7 +21,7 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   labelPadding:     38,   // ≈ 10 du
   textAreaWidth:    650,  // ≈ 170 du
   barcodeZoneWidth: 382,  // = 100 du
-  nameFontSize:     60,
+  nameFontSize:     52,
   sizeFontSize:     38,
 };
 
