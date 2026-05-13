@@ -54,3 +54,5 @@ Examples:
 - `feat(export): generate 4x6 PDF sticker with UPC-A barcode`
 - `fix(images): fuzzy match filenames to art names case-insensitively`
 - `style(ui): improve table row hover and selection states`
+
+After completing any set of changes, always draft a commit message for the user to review.

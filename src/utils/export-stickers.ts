@@ -35,12 +35,22 @@ function sizeCode(size: string): string {
   return match[1].replace(/\s*[xX×]\s*/, 'x');
 }
 
-function inferTypeFolder(size: string): string {
+function artTypeFolder(size: string): string {
   const s = size.toLowerCase();
-  if (s.includes('paint by number')) return 'paint-by-numbers';
-  if (s.includes('diamond art') || s.includes('diamond painting')) return 'diamond-art';
-  if (s.includes('embroidered') || s.includes('embroidery')) return 'embroidery';
-  return 'other';
+  if (s.includes('paint by number')) return 'PaintByNumbers';
+  if (s.includes('diamond art') || s.includes('diamond painting')) return 'DiamondArt';
+  if (s.includes('embroidered') || s.includes('embroidery')) return 'Embroidery';
+  return 'Other';
+}
+
+function datetimeStamp(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}_${hh}${min}`;
 }
 
 /**
@@ -63,6 +73,15 @@ export async function exportStickerPdfs(rows: StickerRow[]): Promise<void> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+
+  // Determine root export folder:
+  //   - If user selected a folder named "Stickers", create datetime subfolder inside it.
+  //   - Otherwise, create "Stickers_<datetime>" inside the selected folder.
+  const stamp = datetimeStamp();
+  const isStickersFolder = dirHandle.name.toLowerCase() === 'stickers';
+  const rootHandle = isStickersFolder
+    ? await dirHandle.getDirectoryHandle(stamp, { create: true })
+    : await dirHandle.getDirectoryHandle(`Stickers_${stamp}`, { create: true });
 
   for (const row of eligible) {
     const stickerCanvas = await renderStickerCanvas(
@@ -90,15 +109,11 @@ export async function exportStickerPdfs(rows: StickerRow[]): Promise<void> {
     const sizeSlug = sizeCode(row.size);
     const fileName = `${artSlug}_${prodId}_${sizeSlug}.pdf`;
 
-    const typeFolder = inferTypeFolder(row.size);
-    const sizeFolder = sanitize(row.size);
-    const artFolder = sanitize(row.artName);
+    // Folder structure: <root>/<ArtType>/<size>/filename.pdf
+    const typeDir = await rootHandle.getDirectoryHandle(artTypeFolder(row.size), { create: true });
+    const sizeDir = await typeDir.getDirectoryHandle(sizeSlug, { create: true });
 
-    const typeDir = await dirHandle.getDirectoryHandle(typeFolder, { create: true });
-    const sizeDir = await typeDir.getDirectoryHandle(sizeFolder, { create: true });
-    const artDir = await sizeDir.getDirectoryHandle(artFolder, { create: true });
-
-    const fileHandle = await artDir.getFileHandle(fileName, { create: true });
+    const fileHandle = await sizeDir.getFileHandle(fileName, { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(pdfBytes);
     await writable.close();
