@@ -5,7 +5,8 @@ export const STICKER_W = 1200;
 export const STICKER_H = 1800;
 export const STRIP_H = 240;        // bottom white strip height in px
 export const PADDING = 32;
-export const FONT = 'Helvetica';
+export const NAME_FONT = 'Baskerville Display PT';
+export const META_FONT = 'Tw Cen MT';
 
 /**
  * Renders a UPC-A barcode onto an offscreen canvas and returns it as ImageBitmap.
@@ -117,13 +118,13 @@ export async function renderStickerCanvas(
 
   // Art Name — large, bold, uppercase spaced (matching reference)
   ctx.fillStyle = '#111111';
-  ctx.font = `bold 44px ${FONT}`;
+  ctx.font = `bold 44px '${NAME_FONT}'`;
   ctx.letterSpacing = '3px';
   const artNameUpper = artName.toUpperCase();
   ctx.fillText(clampText(ctx, artNameUpper, textMaxW), PADDING, stripY + 80);
 
   // Size — smaller, regular weight
-  ctx.font = `28px ${FONT}`;
+  ctx.font = `28px '${META_FONT}'`;
   ctx.letterSpacing = '1px';
   ctx.fillStyle = '#444444';
   ctx.fillText(clampText(ctx, size, textMaxW), PADDING, stripY + 122);
