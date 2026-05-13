@@ -101,10 +101,26 @@ function canvasToPdfDataUrl(canvas: HTMLCanvasElement): string {
  * Exports all selected rows with images as individual PDFs saved into a
  * user-chosen directory with the structure: type/size/art_name/upc.pdf
  */
+export interface ExportOptions {
+  /**
+   * When true, the exported PDF has selectable/editable text overlaid on a
+   * text-free background image (label + barcode are flattened, fixed).
+   * Text falls back to Times / Helvetica unless TTFs are present in
+   * public/fonts/ — the live preview's exact fonts will NOT be preserved
+   * in this mode.
+   *
+   * When false (default), the entire sticker is rasterized at 300 DPI so
+   * the exact preview fonts are preserved; nothing in the PDF is selectable.
+   */
+  editableText?: boolean;
+}
+
 export async function exportStickerPdfs(
   rows: StickerRow[],
-  layout: LayoutConfig = DEFAULT_LAYOUT
+  layout: LayoutConfig = DEFAULT_LAYOUT,
+  options: ExportOptions = {}
 ): Promise<void> {
+  const editableText = options.editableText ?? false;
   const eligible = rows.filter((r) => r.selected && r.imageFile);
 
   if (eligible.length === 0) {
@@ -124,16 +140,17 @@ export async function exportStickerPdfs(
     : await dirHandle.getDirectoryHandle(`Stickers_${stamp}`, { create: true });
 
   for (const row of eligible) {
-    // Render the background WITHOUT text — text is drawn natively below so
-    // it remains selectable / editable in PDF viewers. Label and barcode
-    // remain part of the flattened raster background (fixed, not editable).
+    // If editableText is true, skip the canvas text layer so we can draw
+    // selectable text natively below. Otherwise the canvas renders
+    // everything (preserving the exact preview fonts) and is flattened
+    // into the PDF as one raster image.
     const stickerCanvas = await renderStickerCanvas(
       row.imageFile!,
       row.artName,
       row.size,
       row.upc,
       layout,
-      { skipText: true }
+      { skipText: editableText }
     );
 
     const dataUrl = canvasToPdfDataUrl(stickerCanvas);
@@ -151,46 +168,48 @@ export async function exportStickerPdfs(
     // but ~2-3× faster for full-page sticker images.
     pdf.addImage(dataUrl, 'PNG', 0, 0, STICKER_W_IN, STICKER_H_IN, undefined, 'FAST');
 
-    // Register embedded fonts (Baskerville Display PT / Tw Cen MT) if their
-    // .ttf files are present in public/fonts/. Falls back to Times/Helvetica.
-    const { nameFamily, sizeFamily } = await registerPdfFonts(pdf);
+    if (editableText) {
+      // Register embedded fonts (Baskerville Display PT / Tw Cen MT) if their
+      // .ttf files are present in public/fonts/. Falls back to Times/Helvetica.
+      const { nameFamily, sizeFamily } = await registerPdfFonts(pdf);
 
-    // --- Editable text overlay (selectable in PDF viewers) ---
-    // Geometry mirrors render-sticker.ts so the text lands inside the label.
-    const labelXIn = pxToIn(layout.labelInset);
-    const labelYIn = pxToIn(STICKER_H - layout.labelInset - layout.labelHeight);
-    const labelHIn = pxToIn(layout.labelHeight);
-    const textXIn = labelXIn + pxToIn(layout.labelPadding);
-    const textAreaWIn = pxToIn(layout.textAreaWidth);
+      // --- Editable text overlay (selectable in PDF viewers) ---
+      // Geometry mirrors render-sticker.ts so the text lands inside the label.
+      const labelXIn = pxToIn(layout.labelInset);
+      const labelYIn = pxToIn(STICKER_H - layout.labelInset - layout.labelHeight);
+      const labelHIn = pxToIn(layout.labelHeight);
+      const textXIn = labelXIn + pxToIn(layout.labelPadding);
+      const textAreaWIn = pxToIn(layout.textAreaWidth);
 
-    // Art name — uppercase, wide letter-spacing (mirrors canvas '12px').
-    pdf.setFont(nameFamily, 'normal');
-    pdf.setTextColor(17, 17, 17); // #111
-    const nameCharSpaceIn = pxToIn(12);
-    pdf.setCharSpace(nameCharSpaceIn);
-    const artNameUpper = row.artName.toUpperCase();
-    const namePt = fitPdfFontSize(
-      pdf, artNameUpper, textAreaWIn, pxToPt(layout.nameFontSize), nameCharSpaceIn
-    );
-    const namePxAtFit = (namePt * DPI) / 72; // convert back to canvas px for baseline math
-    const nameBaselineIn = labelYIn + pxToIn(layout.labelPadding + Math.round(namePxAtFit * 0.72));
-    pdf.text(artNameUpper, textXIn, nameBaselineIn, { baseline: 'alphabetic' });
+      // Art name — uppercase, wide letter-spacing (mirrors canvas '12px').
+      pdf.setFont(nameFamily, 'normal');
+      pdf.setTextColor(17, 17, 17); // #111
+      const nameCharSpaceIn = pxToIn(12);
+      pdf.setCharSpace(nameCharSpaceIn);
+      const artNameUpper = row.artName.toUpperCase();
+      const namePt = fitPdfFontSize(
+        pdf, artNameUpper, textAreaWIn, pxToPt(layout.nameFontSize), nameCharSpaceIn
+      );
+      const namePxAtFit = (namePt * DPI) / 72; // convert back to canvas px for baseline math
+      const nameBaselineIn = labelYIn + pxToIn(layout.labelPadding + Math.round(namePxAtFit * 0.72));
+      pdf.text(artNameUpper, textXIn, nameBaselineIn, { baseline: 'alphabetic' });
 
-    // Size — normal case, has descenders.
-    pdf.setFont(sizeFamily, 'normal');
-    pdf.setTextColor(68, 68, 68); // #444
-    const sizeCharSpaceIn = pxToIn(1);
-    pdf.setCharSpace(sizeCharSpaceIn);
-    const sizePt = fitPdfFontSize(
-      pdf, row.size, textAreaWIn, pxToPt(layout.sizeFontSize), sizeCharSpaceIn
-    );
-    const sizePxAtFit = (sizePt * DPI) / 72;
-    const sizeBaselineIn =
-      labelYIn + labelHIn - pxToIn(layout.labelPadding + Math.round(sizePxAtFit * 0.20));
-    pdf.text(row.size, textXIn, sizeBaselineIn, { baseline: 'alphabetic' });
+      // Size — normal case, has descenders.
+      pdf.setFont(sizeFamily, 'normal');
+      pdf.setTextColor(68, 68, 68); // #444
+      const sizeCharSpaceIn = pxToIn(1);
+      pdf.setCharSpace(sizeCharSpaceIn);
+      const sizePt = fitPdfFontSize(
+        pdf, row.size, textAreaWIn, pxToPt(layout.sizeFontSize), sizeCharSpaceIn
+      );
+      const sizePxAtFit = (sizePt * DPI) / 72;
+      const sizeBaselineIn =
+        labelYIn + labelHIn - pxToIn(layout.labelPadding + Math.round(sizePxAtFit * 0.20));
+      pdf.text(row.size, textXIn, sizeBaselineIn, { baseline: 'alphabetic' });
 
-    // Reset charSpace so metadata / other ops aren't affected.
-    pdf.setCharSpace(0);
+      // Reset charSpace so metadata / other ops aren't affected.
+      pdf.setCharSpace(0);
+    }
 
     // Embed basic metadata so downstream tools can identify the sticker.
     pdf.setProperties({
