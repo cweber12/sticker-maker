@@ -1,23 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStickerStore } from '@/store/useStickerStore';
-import { renderStickerCanvas, renderBarcode } from '@/utils/render-sticker';
-import { STICKER_W, STICKER_H } from '@/utils/render-sticker';
+import { renderStickerCanvas, renderBarcode, STICKER_W, STICKER_H } from '@/utils/render-sticker';
 import type { StickerRow } from '@/types';
+
+/** A known-valid UPC-A used for the sample barcode preview. */
+const SAMPLE_UPC = '012345678905';
+
+const VALID_UPC_RE = /^\d{12}$/;
 
 /**
  * StickerPreview — 4×6 in print-ready label preview.
  *
- * When the focused row has an image file, calls renderStickerCanvas() directly
- * so the preview is a pixel-perfect match of the exported PDF.
- * Falls back to a CSS layout with the exact same proportions when no image.
+ * - With image: renders via renderStickerCanvas — pixel-perfect PDF match.
+ * - Without image: CSS placeholder scaled to exact canvas proportions.
  *
- * Reads the current `layout` from the store, so the Layout Editor reflects live.
+ * "Preview barcode" toggle: renders a sample UPC-A barcode when the row has
+ * no valid UPC, so the user can see the full label layout before adding UPCs.
  */
 export function StickerPreview() {
   const rows = useStickerStore((s) => s.rows);
   const layout = useStickerStore((s) => s.layout);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [sampleBarcode, setSampleBarcode] = useState(false);
 
   const focus: StickerRow | null =
     rows.find((r) => r.selected && r.imageFile) ??
@@ -26,6 +31,10 @@ export function StickerPreview() {
     rows[0] ??
     null;
 
+  const hasValidUpc = VALID_UPC_RE.test(focus?.upc ?? '');
+  // When sample toggle is on and no real UPC exists, substitute the sample UPC.
+  const upcForRender = hasValidUpc ? focus!.upc : sampleBarcode ? SAMPLE_UPC : (focus?.upc ?? '');
+
   useEffect(() => {
     if (!focus?.imageFile) {
       setPreviewUrl(null);
@@ -33,7 +42,7 @@ export function StickerPreview() {
     }
     let cancelled = false;
     setRendering(true);
-    renderStickerCanvas(focus.imageFile, focus.artName, focus.size, focus.upc, layout)
+    renderStickerCanvas(focus.imageFile, focus.artName, focus.size, upcForRender, layout)
       .then((canvas) => {
         if (cancelled) return;
         setPreviewUrl(canvas.toDataURL('image/jpeg', 0.85));
@@ -43,13 +52,39 @@ export function StickerPreview() {
         if (!cancelled) setRendering(false);
       });
     return () => { cancelled = true; };
-  }, [focus?.id, focus?.artName, focus?.size, focus?.upc, focus?.imageFile, layout]);
+  }, [focus?.id, focus?.artName, focus?.size, upcForRender, focus?.imageFile, layout]);
 
   return (
     <aside className="lg:sticky lg:top-24 self-start">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <span className="eyebrow">Live Preview</span>
-        <span className="eyebrow text-[10px]!">4 × 6 in · 300 dpi</span>
+        <div className="flex items-center gap-2">
+          {/* Sample barcode toggle — only relevant when row has no valid UPC */}
+          {!hasValidUpc && (
+            <button
+              type="button"
+              onClick={() => setSampleBarcode((b) => !b)}
+              title="Show a sample barcode to preview the label layout"
+              className={`inline-flex items-center gap-1 text-[10px] font-mono tracking-[0.08em] uppercase px-1.5 py-0.5 rounded border transition-colors ${
+                sampleBarcode
+                  ? 'border-sienna text-sienna bg-[color-mix(in_oklab,var(--color-sienna)_8%,transparent)]'
+                  : 'border-rule text-ink-4 hover:border-ink-4'
+              }`}
+            >
+              <svg className="size-2.5" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="0" y="0" width="1.5" height="16" />
+                <rect x="2.5" y="0" width="1" height="16" />
+                <rect x="4.5" y="0" width="2" height="16" />
+                <rect x="7.5" y="0" width="1" height="16" />
+                <rect x="9.5" y="0" width="1.5" height="16" />
+                <rect x="12" y="0" width="1" height="16" />
+                <rect x="14" y="0" width="2" height="16" />
+              </svg>
+              {sampleBarcode ? 'Sample on' : 'Preview barcode'}
+            </button>
+          )}
+          <span className="eyebrow text-[10px]!">4 × 6 in · 300 dpi</span>
+        </div>
       </div>
 
       <div
@@ -64,19 +99,18 @@ export function StickerPreview() {
         )}
 
         {previewUrl ? (
-          /* Exact canvas render — pixel-perfect PDF match */
           <img src={previewUrl} alt={focus?.artName} className="w-full h-full object-cover" />
         ) : (
-          /* CSS layout — matches PDF proportions, no image loaded yet */
-          <StickerLayoutPlaceholder focus={focus} />
-        )}      </div>
+          <StickerLayoutPlaceholder focus={focus} sampleBarcode={sampleBarcode} />
+        )}
+      </div>
 
       <p className="text-[11px] text-ink-4 text-center mt-3 leading-relaxed">
         {focus
           ? focus.imageFile
             ? rendering
               ? 'Rendering ' + focus.artName + '…'
-              : 'Showing: ' + focus.artName
+              : 'Showing: ' + focus.artName + (sampleBarcode && !hasValidUpc ? ' · sample barcode' : '')
             : 'Add an image to ' + focus.artName + ' to preview'
           : 'Select or add an image to preview a sticker'}
       </p>
@@ -84,14 +118,24 @@ export function StickerPreview() {
   );
 }
 
-function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
+function StickerLayoutPlaceholder({
+  focus,
+  sampleBarcode,
+}: {
+  focus: StickerRow | null;
+  sampleBarcode: boolean;
+}) {
   const barcodeRef = useRef<HTMLCanvasElement>(null);
   const layout = useStickerStore((s) => s.layout);
 
+  const hasValidUpc = VALID_UPC_RE.test(focus?.upc ?? '');
+  const showBarcode = hasValidUpc || sampleBarcode;
+  const upcToRender = hasValidUpc ? (focus!.upc) : SAMPLE_UPC;
+
   useEffect(() => {
     const el = barcodeRef.current;
-    if (!el || !focus?.upc) return;
-    renderBarcode(focus.upc).then((bc) => {
+    if (!el || !showBarcode) return;
+    renderBarcode(upcToRender).then((bc) => {
       if (!bc) return;
       const ctx = el.getContext('2d');
       if (!ctx) return;
@@ -99,11 +143,9 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
       el.height = bc.height;
       ctx.drawImage(bc, 0, 0);
     });
-  }, [focus?.upc]);
+  }, [upcToRender, showBarcode]);
 
-  const hasValidUpc = !!focus?.upc && /^\d{12}$/.test(focus.upc);
-
-  // Convert px constants → percentages / cqw units of the preview container.
+  // Convert canvas px → % / cqw units of the preview container.
   const labelBottom = `${(layout.labelInset / STICKER_H) * 100}%`;
   const labelSide   = `${(layout.labelInset / STICKER_W) * 100}%`;
   const labelHeight = `${(layout.labelHeight / STICKER_H) * 100}%`;
@@ -132,12 +174,12 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
         </p>
       </div>
 
-      {/* Floating white label — matches the PDF label exactly */}
+      {/* Floating white label — matches PDF canvas layout exactly */}
       <div
         className="absolute bg-white flex items-stretch overflow-hidden shadow-sm"
         style={{ bottom: labelBottom, left: labelSide, right: labelSide, height: labelHeight }}
       >
-        {/* Left: art name (top) + size (bottom) */}
+        {/* Left: art name (top) + size (bottom) — padded */}
         <div
           className="flex flex-col justify-between min-w-0 flex-1"
           style={{ padding: `${labelPadCqw} ${labelPadCqw}` }}
@@ -157,15 +199,15 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
           </p>
         </div>
 
-        {/* Right: barcode zone */}
-        <div
-          className="shrink-0 flex items-center justify-center"
-          style={{ width: barcodeWCqw, padding: `0 ${labelPadCqw}` }}
-        >
-          {hasValidUpc ? (
-            <canvas ref={barcodeRef} className="w-full h-auto" />
+        {/* Right: barcode zone — no padding, flush to label top/right/bottom */}
+        <div className="shrink-0 overflow-hidden" style={{ width: barcodeWCqw }}>
+          {showBarcode ? (
+            <canvas
+              ref={barcodeRef}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
           ) : (
-            <FauxBarcode value={focus?.upc} />
+            <FauxBarcode />
           )}
         </div>
       </div>
@@ -173,24 +215,17 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
   );
 }
 
-function FauxBarcode({ value }: { value?: string }) {
-  const seed = (value ?? '000000').replace(/\D/g, '').slice(0, 12) || '0';
-  const bars: number[] = [];
-  for (let i = 0; i < 40; i++) {
-    const ch = seed.charCodeAt(i % seed.length) + i * 7;
-    bars.push(((ch * 31) % 3) + 1);
-  }
+function FauxBarcode() {
   return (
     <svg viewBox="0 0 80 28" width="100%" height="100%" preserveAspectRatio="none">
-      {(() => {
+      {[2,1,3,1,2,1,1,2,1,3,1,2,2,1,1,2,3,1,2,1,1,3,2,1,1,2,1,2,3,1].map((w, i) => {
         let x = 0;
-        return bars.map((w, i) => {
-          const fill = i % 2 === 0 ? '#18171a' : 'transparent';
-          const rect = <rect key={i} x={x} y={0} width={w} height={28} fill={fill} />;
-          x += w;
-          return rect;
-        });
-      })()}
+        for (let j = 0; j < i; j++) x += [2,1,3,1,2,1,1,2,1,3,1,2,2,1,1,2,3,1,2,1,1,3,2,1,1,2,1,2,3,1][j];
+        return i % 2 === 0
+          ? <rect key={i} x={x} y={0} width={w} height={28} fill="#18171a" />
+          : null;
+      })}
     </svg>
   );
 }
+

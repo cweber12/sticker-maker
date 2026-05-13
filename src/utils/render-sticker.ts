@@ -114,16 +114,13 @@ export async function renderStickerCanvas(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(labelX, labelY, labelW, labelH);
 
-  // --- Barcode (fixed zone on right side of label) ---
+  // --- Barcode (right side of label — no padding, flush to label top/right/bottom edges) ---
+  // Rendered at barcodeZoneWidth × labelHeight (default ≈ 100 × 45 design units).
   const barcodeCanvas = await renderBarcode(upc);
-  const barcodeZoneX = labelX + labelW - layout.labelPadding - layout.barcodeZoneWidth;
-  const barcodeH = barcodeCanvas
-    ? Math.round((barcodeCanvas.height / barcodeCanvas.width) * layout.barcodeZoneWidth)
-    : 0;
-  const barcodeY = labelY + (labelH - barcodeH) / 2;
+  const barcodeX = labelX + labelW - layout.barcodeZoneWidth; // flush to right edge
 
   if (barcodeCanvas) {
-    ctx.drawImage(barcodeCanvas, barcodeZoneX, barcodeY, layout.barcodeZoneWidth, barcodeH);
+    ctx.drawImage(barcodeCanvas, barcodeX, labelY, layout.barcodeZoneWidth, labelH);
   }
 
   // --- Text (fixed area on left side of label) ---
@@ -170,5 +167,4 @@ function fitFontSize(
     ctx.font = `${size}px '${family}'`;
   }
   return size;
-}
 }
