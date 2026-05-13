@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
-import type { StickerRow } from '@/types';
-import { renderStickerCanvas, STICKER_W, STICKER_H } from './render-sticker';
+import type { StickerRow, LayoutConfig } from '@/types';
+import { renderStickerCanvas, STICKER_W, STICKER_H, DEFAULT_LAYOUT } from './render-sticker';
 
 const DPI = 300;
 const STICKER_W_IN = STICKER_W / DPI; // 4 inches
@@ -54,17 +54,22 @@ function datetimeStamp(): string {
 }
 
 /**
- * Converts a canvas to a jsPDF-compatible data URL at the sticker dimensions.
+ * Converts a canvas to a PNG data URL. PNG is used (rather than JPEG) so
+ * UPC-A barcode edges and label text stay crisp — JPEG chroma subsampling
+ * blurs hard black/white transitions, which can hurt barcode scan reliability.
  */
 function canvasToPdfDataUrl(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL('image/jpeg', 0.95);
+  return canvas.toDataURL('image/png');
 }
 
 /**
  * Exports all selected rows with images as individual PDFs saved into a
  * user-chosen directory with the structure: type/size/art_name/upc.pdf
  */
-export async function exportStickerPdfs(rows: StickerRow[]): Promise<void> {
+export async function exportStickerPdfs(
+  rows: StickerRow[],
+  layout: LayoutConfig = DEFAULT_LAYOUT
+): Promise<void> {
   const eligible = rows.filter((r) => r.selected && r.imageFile);
 
   if (eligible.length === 0) {
@@ -88,18 +93,31 @@ export async function exportStickerPdfs(rows: StickerRow[]): Promise<void> {
       row.imageFile!,
       row.artName,
       row.size,
-      row.upc
+      row.upc,
+      layout
     );
 
     const dataUrl = canvasToPdfDataUrl(stickerCanvas);
 
+    // jsPDF — exact 4×6 in page, image placed at origin filling the page.
+    // `compress: true` keeps output small without quality loss (PNG is lossless).
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'in',
       format: [STICKER_W_IN, STICKER_H_IN],
+      compress: true,
     });
 
-    pdf.addImage(dataUrl, 'JPEG', 0, 0, STICKER_W_IN, STICKER_H_IN);
+    // 'PNG' format + 'FAST' compression — visually identical to 'SLOW',
+    // but ~2-3× faster for full-page sticker images.
+    pdf.addImage(dataUrl, 'PNG', 0, 0, STICKER_W_IN, STICKER_H_IN, undefined, 'FAST');
+
+    // Embed basic metadata so downstream tools can identify the sticker.
+    pdf.setProperties({
+      title: `${row.artName} — ${row.size}`,
+      subject: row.upc || 'Sticker',
+      creator: 'Sticker Maker',
+    });
 
     const pdfBytes = pdf.output('arraybuffer');
 

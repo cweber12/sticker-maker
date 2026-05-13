@@ -5,6 +5,7 @@ import type { ExportStatus } from '@/types';
 
 export function ExportPanel() {
   const rows = useStickerStore((s) => s.rows);
+  const layout = useStickerStore((s) => s.layout);
   const [status, setStatus] = useState<ExportStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [exportCount, setExportCount] = useState(0);
@@ -18,7 +19,7 @@ export function ExportPanel() {
     setStatus('exporting');
     setErrorMsg('');
     try {
-      await exportStickerPdfs(rows);
+      await exportStickerPdfs(rows, layout);
       setExportCount(selectedWithImages.length);
       setStatus('done');
     } catch (err) {

@@ -1,17 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStickerStore } from '@/store/useStickerStore';
 import { renderStickerCanvas, renderBarcode } from '@/utils/render-sticker';
+import { STICKER_W, STICKER_H } from '@/utils/render-sticker';
 import type { StickerRow } from '@/types';
-
-// Proportions derived from render-sticker.ts canvas constants:
-// STICKER_W=1200, STICKER_H=1800, LABEL_INSET=46, LABEL_H=171, LABEL_PAD=38, BARCODE_ZONE_W=382
-const LABEL_BOTTOM  = `${(46 / 1800) * 100}%`;       // 2.556% — bottom inset (% of height)
-const LABEL_SIDE    = `${(46 / 1200) * 100}%`;        // 3.833% — left/right inset (% of width)
-const LABEL_HEIGHT  = `${(171 / 1800) * 100}%`;       // 9.5%   — label height (% of height)
-const LABEL_PAD_CQW = `${(38 / 1200) * 100}cqw`;      // 3.167cqw — inner padding
-const NAME_SIZE     = `${(60 / 1200) * 100}cqw`;      // 5cqw     — art name font size
-const SIZE_SIZE     = `${(38 / 1200) * 100}cqw`;      // 3.167cqw — size text font size
-const BARCODE_W_CQW = `${(382 / 1200) * 100}cqw`;     // 31.833cqw — barcode zone width
 
 /**
  * StickerPreview — 4×6 in print-ready label preview.
@@ -19,9 +10,12 @@ const BARCODE_W_CQW = `${(382 / 1200) * 100}cqw`;     // 31.833cqw — barcode z
  * When the focused row has an image file, calls renderStickerCanvas() directly
  * so the preview is a pixel-perfect match of the exported PDF.
  * Falls back to a CSS layout with the exact same proportions when no image.
+ *
+ * Reads the current `layout` from the store, so the Layout Editor reflects live.
  */
 export function StickerPreview() {
   const rows = useStickerStore((s) => s.rows);
+  const layout = useStickerStore((s) => s.layout);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
 
@@ -39,7 +33,7 @@ export function StickerPreview() {
     }
     let cancelled = false;
     setRendering(true);
-    renderStickerCanvas(focus.imageFile, focus.artName, focus.size, focus.upc)
+    renderStickerCanvas(focus.imageFile, focus.artName, focus.size, focus.upc, layout)
       .then((canvas) => {
         if (cancelled) return;
         setPreviewUrl(canvas.toDataURL('image/jpeg', 0.85));
@@ -49,7 +43,7 @@ export function StickerPreview() {
         if (!cancelled) setRendering(false);
       });
     return () => { cancelled = true; };
-  }, [focus?.id, focus?.artName, focus?.size, focus?.upc, focus?.imageFile]);
+  }, [focus?.id, focus?.artName, focus?.size, focus?.upc, focus?.imageFile, layout]);
 
   return (
     <aside className="lg:sticky lg:top-24 self-start">
@@ -75,8 +69,7 @@ export function StickerPreview() {
         ) : (
           /* CSS layout — matches PDF proportions, no image loaded yet */
           <StickerLayoutPlaceholder focus={focus} />
-        )}
-      </div>
+        )}      </div>
 
       <p className="text-[11px] text-ink-4 text-center mt-3 leading-relaxed">
         {focus
@@ -93,6 +86,7 @@ export function StickerPreview() {
 
 function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
   const barcodeRef = useRef<HTMLCanvasElement>(null);
+  const layout = useStickerStore((s) => s.layout);
 
   useEffect(() => {
     const el = barcodeRef.current;
@@ -108,6 +102,15 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
   }, [focus?.upc]);
 
   const hasValidUpc = !!focus?.upc && /^\d{12}$/.test(focus.upc);
+
+  // Convert px constants → percentages / cqw units of the preview container.
+  const labelBottom = `${(layout.labelInset / STICKER_H) * 100}%`;
+  const labelSide   = `${(layout.labelInset / STICKER_W) * 100}%`;
+  const labelHeight = `${(layout.labelHeight / STICKER_H) * 100}%`;
+  const labelPadCqw = `${(layout.labelPadding / STICKER_W) * 100}cqw`;
+  const nameSize    = `${(layout.nameFontSize / STICKER_W) * 100}cqw`;
+  const sizeSize    = `${(layout.sizeFontSize / STICKER_W) * 100}cqw`;
+  const barcodeWCqw = `${(layout.barcodeZoneWidth / STICKER_W) * 100}cqw`;
 
   return (
     <div className="relative w-full h-full bg-paper-2">
@@ -132,23 +135,23 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
       {/* Floating white label — matches the PDF label exactly */}
       <div
         className="absolute bg-white flex items-stretch overflow-hidden shadow-sm"
-        style={{ bottom: LABEL_BOTTOM, left: LABEL_SIDE, right: LABEL_SIDE, height: LABEL_HEIGHT }}
+        style={{ bottom: labelBottom, left: labelSide, right: labelSide, height: labelHeight }}
       >
         {/* Left: art name (top) + size (bottom) */}
         <div
           className="flex flex-col justify-between min-w-0 flex-1"
-          style={{ padding: `${LABEL_PAD_CQW} ${LABEL_PAD_CQW}` }}
+          style={{ padding: `${labelPadCqw} ${labelPadCqw}` }}
         >
           <p
             className="leading-none truncate uppercase text-[#111]"
-            style={{ fontFamily: "'Baskerville Display PT', Baskerville, serif", fontSize: NAME_SIZE }}
+            style={{ fontFamily: "'Baskerville Display PT', Baskerville, serif", fontSize: nameSize }}
             title={focus?.artName}
           >
             {focus?.artName || 'Art Name'}
           </p>
           <p
             className="leading-none truncate text-[#444]"
-            style={{ fontFamily: "'Tw Cen MT', 'Trebuchet MS', sans-serif", fontSize: SIZE_SIZE }}
+            style={{ fontFamily: "'Tw Cen MT', 'Trebuchet MS', sans-serif", fontSize: sizeSize }}
           >
             {focus?.size || 'Size'}
           </p>
@@ -157,7 +160,7 @@ function StickerLayoutPlaceholder({ focus }: { focus: StickerRow | null }) {
         {/* Right: barcode zone */}
         <div
           className="shrink-0 flex items-center justify-center"
-          style={{ width: BARCODE_W_CQW, padding: `0 ${LABEL_PAD_CQW}` }}
+          style={{ width: barcodeWCqw, padding: `0 ${labelPadCqw}` }}
         >
           {hasValidUpc ? (
             <canvas ref={barcodeRef} className="w-full h-auto" />

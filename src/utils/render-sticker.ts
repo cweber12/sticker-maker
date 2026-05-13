@@ -1,15 +1,32 @@
 import bwipjs from 'bwip-js';
+import type { LayoutConfig } from '@/types';
 
 // Sticker dimensions: 4×6 in at 300 DPI
 export const STICKER_W = 1200;
 export const STICKER_H = 1800;
-export const LABEL_INSET = 46;      // 12 units × 3.82 scale — gap between label and sticker edge
-export const LABEL_H = 171;         // canvas px — floating white label height
-export const LABEL_PAD = 38;        // 10 units × 3.82 — inner padding inside the label
-export const TEXT_AREA_W = 650;     // 170 units × 3.82 — reserved width for art name / size
-export const BARCODE_ZONE_W = 382;  // 100 units × 3.82 — reserved width for barcode (always held)
+
+/** Design-unit scale: 1 design unit ≈ this many canvas px. */
+export const DESIGN_UNIT_PX = 3.82;
+
 export const NAME_FONT = 'Baskerville Display PT';
 export const META_FONT = 'Tw Cen MT';
+
+/**
+ * Default layout — matches the values documented in docs/unit-conversions.md.
+ * (12 / 45 / 10 / 170 / 100 design units × 3.82 = px below.)
+ */
+export const DEFAULT_LAYOUT: LayoutConfig = {
+  labelInset:       46,   // ≈ 12 du
+  labelHeight:      171,  // ≈ 45 du
+  labelPadding:     38,   // ≈ 10 du
+  textAreaWidth:    650,  // ≈ 170 du
+  barcodeZoneWidth: 382,  // = 100 du
+  nameFontSize:     60,
+  sizeFontSize:     38,
+};
+
+/** Min font size px floor when shrinking text to fit. */
+const FONT_FLOOR = 10;
 
 /**
  * Renders a UPC-A barcode onto an offscreen canvas and returns it as ImageBitmap.
@@ -54,14 +71,15 @@ export function loadImage(file: File): Promise<HTMLImageElement> {
 
 /**
  * Composites one sticker onto a 1200×1800 canvas and returns it.
- * Layout: product image fills top portion, white strip at bottom.
+ * Layout: product image fills full bleed, white floating strip at bottom.
  * Strip: Art Name + Size on the left, UPC-A barcode on the right.
  */
 export async function renderStickerCanvas(
   imageFile: File,
   artName: string,
   size: string,
-  upc: string
+  upc: string,
+  layout: LayoutConfig = DEFAULT_LAYOUT
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = STICKER_W;
@@ -72,7 +90,7 @@ export async function renderStickerCanvas(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, STICKER_W, STICKER_H);
 
-  // --- Product image (full bleed) ---
+  // --- Product image (full bleed, cover crop) ---
   const img = await loadImage(imageFile);
   const srcRatio = img.width / img.height;
   const dstRatio = STICKER_W / STICKER_H;
@@ -88,46 +106,50 @@ export async function renderStickerCanvas(
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, STICKER_W, STICKER_H);
 
   // --- Floating white label (inset from all edges at bottom) ---
-  const labelX = LABEL_INSET;
-  const labelY = STICKER_H - LABEL_INSET - LABEL_H;
-  const labelW = STICKER_W - LABEL_INSET * 2;
+  const labelX = layout.labelInset;
+  const labelY = STICKER_H - layout.labelInset - layout.labelHeight;
+  const labelW = STICKER_W - layout.labelInset * 2;
+  const labelH = layout.labelHeight;
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(labelX, labelY, labelW, LABEL_H);
+  ctx.fillRect(labelX, labelY, labelW, labelH);
 
   // --- Barcode (fixed zone on right side of label) ---
   const barcodeCanvas = await renderBarcode(upc);
-  const barcodeZoneX = labelX + labelW - LABEL_PAD - BARCODE_ZONE_W;
+  const barcodeZoneX = labelX + labelW - layout.labelPadding - layout.barcodeZoneWidth;
   const barcodeH = barcodeCanvas
-    ? Math.round((barcodeCanvas.height / barcodeCanvas.width) * BARCODE_ZONE_W)
+    ? Math.round((barcodeCanvas.height / barcodeCanvas.width) * layout.barcodeZoneWidth)
     : 0;
-  const barcodeY = labelY + (LABEL_H - barcodeH) / 2;
+  const barcodeY = labelY + (labelH - barcodeH) / 2;
 
   if (barcodeCanvas) {
-    ctx.drawImage(barcodeCanvas, barcodeZoneX, barcodeY, BARCODE_ZONE_W, barcodeH);
+    ctx.drawImage(barcodeCanvas, barcodeZoneX, barcodeY, layout.barcodeZoneWidth, barcodeH);
   }
 
   // --- Text (fixed area on left side of label) ---
-  const textX = labelX + LABEL_PAD;
+  const textX = labelX + layout.labelPadding;
 
-  // Art Name — 14.5pt @ 300dpi = 60px, 200 tracking = 12px letter-spacing
-  // Font size scales down if text is too wide so full name always displays.
+  // Art Name — uppercase, all-caps so no ascenders above cap height.
   ctx.fillStyle = '#111111';
   ctx.letterSpacing = '12px';
   const artNameUpper = artName.toUpperCase();
-  const nameFontSize = fitFontSize(ctx, artNameUpper, TEXT_AREA_W, 60, NAME_FONT);
+  const nameFontSize = fitFontSize(
+    ctx, artNameUpper, layout.textAreaWidth, layout.nameFontSize, NAME_FONT
+  );
   ctx.font = `${nameFontSize}px '${NAME_FONT}'`;
-  // Baseline: LABEL_PAD from label top + cap height (≈ 72% of font size, all-caps so no ascenders above cap)
-  const nameY = labelY + LABEL_PAD + Math.round(nameFontSize * 0.72);
+  // Baseline: labelPadding from label top + cap height (≈ 72% of font size).
+  const nameY = labelY + layout.labelPadding + Math.round(nameFontSize * 0.72);
   ctx.fillText(artNameUpper, textX, nameY);
 
-  // Size — 9pt @ 300dpi = 38px
+  // Size — non-caps, has descenders.
   ctx.letterSpacing = '1px';
-  const sizeFontSize = fitFontSize(ctx, size, TEXT_AREA_W, 38, META_FONT);
+  const sizeFontSize = fitFontSize(
+    ctx, size, layout.textAreaWidth, layout.sizeFontSize, META_FONT
+  );
   ctx.font = `${sizeFontSize}px '${META_FONT}'`;
   ctx.fillStyle = '#444444';
-  // Baseline: LABEL_PAD from label bottom − descender depth (≈ 20% of font size)
-  const sizeY = labelY + LABEL_H - LABEL_PAD - Math.round(sizeFontSize * 0.20);
+  // Baseline: labelPadding from label bottom − descender depth (≈ 20% of font size).
+  const sizeY = labelY + labelH - layout.labelPadding - Math.round(sizeFontSize * 0.20);
   ctx.fillText(size, textX, sizeY);
 
   return canvas;
@@ -143,9 +165,10 @@ function fitFontSize(
 ): number {
   let size = startSize;
   ctx.font = `${size}px '${family}'`;
-  while (size > 10 && ctx.measureText(text).width > maxWidth) {
+  while (size > FONT_FLOOR && ctx.measureText(text).width > maxWidth) {
     size -= 1;
     ctx.font = `${size}px '${family}'`;
   }
   return size;
+}
 }

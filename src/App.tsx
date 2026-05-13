@@ -5,14 +5,16 @@ import { ImageImporter } from '@/components/ImageImporter/ImageImporter';
 import { DataTable } from '@/components/DataTable/DataTable';
 import { ExportPanel } from '@/components/ExportPanel/ExportPanel';
 import { StickerPreview } from '@/components/StickerPreview/StickerPreview';
+import { LayoutEditor } from '@/components/LayoutEditor/LayoutEditor';
 
-type StepKey = 'import' | 'map' | 'images' | 'review' | 'export';
+type StepKey = 'import' | 'map' | 'images' | 'review' | 'layout' | 'export';
 
 const STEPS: { key: StepKey; label: string }[] = [
   { key: 'import', label: 'Spreadsheet' },
   { key: 'map', label: 'Columns' },
   { key: 'images', label: 'Images' },
   { key: 'review', label: 'Review' },
+  { key: 'layout', label: 'Layout' },
   { key: 'export', label: 'Export' },
 ];
 
@@ -40,6 +42,9 @@ function App() {
       case 'review':
         if (!hasRows) return 'pending';
         return selected > 0 ? 'done' : 'active';
+      case 'layout':
+        if (!hasRows) return 'pending';
+        return selected > 0 ? 'active' : 'pending';
       case 'export':
         if (!hasRows) return 'pending';
         return selectedReady > 0 ? 'active' : 'pending';
@@ -163,6 +168,14 @@ function App() {
 
               <SectionBlock
                 number="05"
+                title="Fine-tune the layout"
+                hint="Optional — adjust label dimensions and text sizes. Defaults match the print spec."
+              >
+                <LayoutEditor />
+              </SectionBlock>
+
+              <SectionBlock
+                number="06"
                 title="Export print-ready PDFs"
                 hint="Each sticker exports at 4×6 in / 300 dpi with a UPC-A barcode."
               >

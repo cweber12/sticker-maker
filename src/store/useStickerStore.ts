@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { StickerRow, ColumnMap, RawRow } from '@/types';
+import type { StickerRow, ColumnMap, RawRow, LayoutConfig } from '@/types';
+import { DEFAULT_LAYOUT } from '@/utils/render-sticker';
 
 interface StickerStore {
   // Spreadsheet state
@@ -9,6 +10,9 @@ interface StickerStore {
 
   // Mapped rows
   rows: StickerRow[];
+
+  // Sticker layout (adjustable in Layout Editor)
+  layout: LayoutConfig;
 
   // Actions — spreadsheet
   setSpreadsheetData: (headers: string[], rows: RawRow[]) => void;
@@ -23,6 +27,10 @@ interface StickerStore {
   toggleRowSelected: (id: string) => void;
   selectAll: (selected: boolean) => void;
 
+  // Actions — layout
+  setLayout: (patch: Partial<LayoutConfig>) => void;
+  resetLayout: () => void;
+
   // Actions — reset
   clearAll: () => void;
 }
@@ -32,6 +40,7 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   rawRows: [],
   columnMap: null,
   rows: [],
+  layout: { ...DEFAULT_LAYOUT },
 
   setSpreadsheetData: (headers, rawRows) =>
     set({ rawHeaders: headers, rawRows, columnMap: null, rows: [] }),
@@ -103,6 +112,11 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
 
   selectAll: (selected) =>
     set((state) => ({ rows: state.rows.map((row) => ({ ...row, selected })) })),
+
+  setLayout: (patch) =>
+    set((state) => ({ layout: { ...state.layout, ...patch } })),
+
+  resetLayout: () => set({ layout: { ...DEFAULT_LAYOUT } }),
 
   clearAll: () => set({ rawHeaders: [], rawRows: [], columnMap: null, rows: [] }),
 }));
