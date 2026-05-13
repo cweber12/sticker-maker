@@ -3,8 +3,11 @@ import bwipjs from 'bwip-js';
 // Sticker dimensions: 4×6 in at 300 DPI
 export const STICKER_W = 1200;
 export const STICKER_H = 1800;
-export const STRIP_H = 240;        // bottom white strip height in px
-export const PADDING = 32;
+export const LABEL_INSET = 46;      // 12 units × 3.82 scale — gap between label and sticker edge
+export const LABEL_H = 270;         // canvas px — floating white label height
+export const LABEL_PAD = 38;        // 10 units × 3.82 — inner padding inside the label
+export const TEXT_AREA_W = 650;     // 170 units × 3.82 — reserved width for art name / size
+export const BARCODE_ZONE_W = 382;  // 100 units × 3.82 — reserved width for barcode (always held)
 export const NAME_FONT = 'Baskerville Display PT';
 export const META_FONT = 'Tw Cen MT';
 
@@ -69,78 +72,76 @@ export async function renderStickerCanvas(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, STICKER_W, STICKER_H);
 
-  // --- Product image (fills top area) ---
-  const imgAreaH = STICKER_H - STRIP_H;
+  // --- Product image (full bleed) ---
   const img = await loadImage(imageFile);
   const srcRatio = img.width / img.height;
-  const dstRatio = STICKER_W / imgAreaH;
+  const dstRatio = STICKER_W / STICKER_H;
 
   let sx = 0, sy = 0, sw = img.width, sh = img.height;
   if (srcRatio > dstRatio) {
-    // Image is wider — crop sides
     sw = img.height * dstRatio;
     sx = (img.width - sw) / 2;
   } else {
-    // Image is taller — crop top/bottom
     sh = img.width / dstRatio;
     sy = (img.height - sh) / 2;
   }
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, STICKER_W, imgAreaH);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, STICKER_W, STICKER_H);
 
-  // --- Bottom strip ---
-  const stripY = imgAreaH;
+  // --- Floating white label (inset from all edges at bottom) ---
+  const labelX = LABEL_INSET;
+  const labelY = STICKER_H - LABEL_INSET - LABEL_H;
+  const labelW = STICKER_W - LABEL_INSET * 2;
+
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, stripY, STICKER_W, STRIP_H);
+  ctx.fillRect(labelX, labelY, labelW, LABEL_H);
 
-  // Separator line
-  ctx.strokeStyle = '#e5e5e5';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, stripY);
-  ctx.lineTo(STICKER_W, stripY);
-  ctx.stroke();
-
-  // --- Barcode (right side) ---
+  // --- Barcode (fixed zone on right side of label) ---
   const barcodeCanvas = await renderBarcode(upc);
-  const barcodeW = 340;
+  const barcodeZoneX = labelX + labelW - LABEL_PAD - BARCODE_ZONE_W;
   const barcodeH = barcodeCanvas
-    ? Math.round((barcodeCanvas.height / barcodeCanvas.width) * barcodeW)
+    ? Math.round((barcodeCanvas.height / barcodeCanvas.width) * BARCODE_ZONE_W)
     : 0;
-  const barcodeX = STICKER_W - barcodeW - PADDING;
-  const barcodeY = stripY + (STRIP_H - barcodeH) / 2;
+  const barcodeY = labelY + (LABEL_H - barcodeH) / 2;
 
   if (barcodeCanvas) {
-    ctx.drawImage(barcodeCanvas, barcodeX, barcodeY, barcodeW, barcodeH);
+    ctx.drawImage(barcodeCanvas, barcodeZoneX, barcodeY, BARCODE_ZONE_W, barcodeH);
   }
 
-  // --- Text (left side) ---
-  const textMaxW = barcodeX - PADDING * 2;
+  // --- Text (fixed area on left side of label) ---
+  const textX = labelX + LABEL_PAD;
 
-  // Art Name — large, bold, uppercase spaced (matching reference)
+  // Art Name — 14.5pt @ 300dpi = 60px, 200 tracking = 12px letter-spacing
+  // Font size scales down if text is too wide so full name always displays.
   ctx.fillStyle = '#111111';
-  ctx.font = `bold 44px '${NAME_FONT}'`;
-  ctx.letterSpacing = '3px';
+  ctx.letterSpacing = '12px';
   const artNameUpper = artName.toUpperCase();
-  ctx.fillText(clampText(ctx, artNameUpper, textMaxW), PADDING, stripY + 80);
+  const nameFontSize = fitFontSize(ctx, artNameUpper, TEXT_AREA_W, 60, NAME_FONT);
+  ctx.font = `${nameFontSize}px '${NAME_FONT}'`;
+  ctx.fillText(artNameUpper, textX, labelY + 100);
 
-  // Size — smaller, regular weight
-  ctx.font = `28px '${META_FONT}'`;
+  // Size — 9pt @ 300dpi = 38px
   ctx.letterSpacing = '1px';
+  const sizeFontSize = fitFontSize(ctx, size, TEXT_AREA_W, 38, META_FONT);
+  ctx.font = `${sizeFontSize}px '${META_FONT}'`;
   ctx.fillStyle = '#444444';
-  ctx.fillText(clampText(ctx, size, textMaxW), PADDING, stripY + 122);
+  ctx.fillText(size, textX, labelY + 165);
 
   return canvas;
 }
 
-function clampText(
+/** Reduces font size (step -1px) until text fits within maxWidth. */
+function fitFontSize(
   ctx: CanvasRenderingContext2D,
   text: string,
-  maxWidth: number
-): string {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let t = text;
-  while (t.length > 0 && ctx.measureText(t + '…').width > maxWidth) {
-    t = t.slice(0, -1);
+  maxWidth: number,
+  startSize: number,
+  family: string
+): number {
+  let size = startSize;
+  ctx.font = `${size}px '${family}'`;
+  while (size > 10 && ctx.measureText(text).width > maxWidth) {
+    size -= 1;
+    ctx.font = `${size}px '${family}'`;
   }
-  return t + '…';
+  return size;
 }

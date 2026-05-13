@@ -14,12 +14,30 @@ function sanitize(str: string): string {
 }
 
 /**
- * Infers a type folder from the size string (e.g. "16x20 paint by numbers" → "paint-by-numbers").
- * Falls back to "other".
+ * Returns a short product identifier from the size string.
+ * "10 x 12 paint by numbers" → "PBN"
+ * "10 x 12 diamond painting"  → "DP"
  */
+function productIdentifier(size: string): string {
+  const s = size.toLowerCase();
+  if (s.includes('paint by number')) return 'PBN';
+  if (s.includes('diamond art') || s.includes('diamond painting')) return 'DP';
+  if (s.includes('embroidered') || s.includes('embroidery')) return 'EMB';
+  return 'OTHER';
+}
+
+/**
+ * Extracts just the numeric size portion, e.g. "10 x 12 Paint by Numbers" → "10x12".
+ */
+function sizeCode(size: string): string {
+  const match = size.match(/(\d+\s*[xX×]\s*\d+)/);
+  if (!match) return sanitize(size);
+  return match[1].replace(/\s*[xX×]\s*/, 'x');
+}
+
 function inferTypeFolder(size: string): string {
   const s = size.toLowerCase();
-  if (s.includes('paint by number') || s.includes('paint by numbers')) return 'paint-by-numbers';
+  if (s.includes('paint by number')) return 'paint-by-numbers';
   if (s.includes('diamond art') || s.includes('diamond painting')) return 'diamond-art';
   if (s.includes('embroidered') || s.includes('embroidery')) return 'embroidery';
   return 'other';
@@ -66,11 +84,15 @@ export async function exportStickerPdfs(rows: StickerRow[]): Promise<void> {
 
     const pdfBytes = pdf.output('arraybuffer');
 
-    // Build folder path: type / size / art_name
+    // Build filename: ArtName_PBN_10x12.pdf
+    const artSlug = sanitize(row.artName).replace(/_+/g, '');
+    const prodId = productIdentifier(row.size);
+    const sizeSlug = sizeCode(row.size);
+    const fileName = `${artSlug}_${prodId}_${sizeSlug}.pdf`;
+
     const typeFolder = inferTypeFolder(row.size);
     const sizeFolder = sanitize(row.size);
     const artFolder = sanitize(row.artName);
-    const fileName = `${sanitize(row.upc) || sanitize(row.artName)}.pdf`;
 
     const typeDir = await dirHandle.getDirectoryHandle(typeFolder, { create: true });
     const sizeDir = await typeDir.getDirectoryHandle(sizeFolder, { create: true });

@@ -56,12 +56,30 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   },
 
   setRowImage: (id, file) => {
-    const previewUrl = URL.createObjectURL(file);
-    set((state) => ({
-      rows: state.rows.map((row) =>
-        row.id === id ? { ...row, imageFile: file, imagePreviewUrl: previewUrl } : row
-      ),
-    }));
+    const { rows } = get();
+    const targetRow = rows.find((r) => r.id === id);
+    if (!targetRow) return;
+
+    const artName = targetRow.artName.trim().toLowerCase();
+
+    set((state) => {
+      // Revoke stale preview URLs for all rows that will be updated
+      state.rows.forEach((r) => {
+        if (r.artName.trim().toLowerCase() === artName && r.imagePreviewUrl) {
+          URL.revokeObjectURL(r.imagePreviewUrl);
+        }
+      });
+
+      const previewUrl = URL.createObjectURL(file);
+
+      return {
+        rows: state.rows.map((row) =>
+          row.artName.trim().toLowerCase() === artName
+            ? { ...row, imageFile: file, imagePreviewUrl: previewUrl }
+            : row
+        ),
+      };
+    });
   },
 
   clearRowImage: (id) => {
