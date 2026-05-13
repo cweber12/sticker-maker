@@ -14,12 +14,10 @@ export function ColumnMapper() {
   const applyColumnMap = useStickerStore((s) => s.applyColumnMap);
 
   const [map, setMap] = useState<Partial<ColumnMap>>(() => {
-    // Auto-detect common header names
     const auto: Partial<ColumnMap> = {};
     const lower = rawHeaders.map((h) => h.toLowerCase());
     const find = (terms: string[]) =>
       rawHeaders[lower.findIndex((h) => terms.some((t) => h.includes(t)))] ?? '';
-
     auto.artName = find(['art name', 'art', 'name', 'title']);
     auto.size = find(['size', 'dimension']);
     auto.upc = find(['upc', 'barcode']);
@@ -35,16 +33,13 @@ export function ColumnMapper() {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs">
-      <h3 className="mb-4 text-sm font-semibold text-zinc-700">Map Spreadsheet Columns</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="card p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {FIELDS.map(({ key, label, hint }) => (
-          <div key={key} className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
-              {label}
-            </label>
+          <div key={key} className="flex flex-col gap-2">
+            <label className="eyebrow">{label}</label>
             <select
-              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="field-select"
               value={map[key] ?? ''}
               onChange={(e) => setMap((prev) => ({ ...prev, [key]: e.target.value }))}
             >
@@ -58,13 +53,15 @@ export function ColumnMapper() {
           </div>
         ))}
       </div>
-      <div className="mt-5 flex justify-end">
-        <button
-          onClick={handleApply}
-          disabled={!isComplete}
-          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Apply Mapping
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <p className="text-[12px] text-[var(--color-ink-4)]">
+          {isComplete ? 'All three fields mapped — ready to continue.' : 'Map each field to continue.'}
+        </p>
+        <button onClick={handleApply} disabled={!isComplete} className="btn-primary">
+          Apply mapping
+          <svg className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+          </svg>
         </button>
       </div>
     </div>
