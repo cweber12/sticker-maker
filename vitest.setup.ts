@@ -30,10 +30,10 @@ class MockCanvasRenderingContext2D {
   rect = vi.fn();
 }
 
-HTMLCanvasElement.prototype.getContext = function (type: string) {
+HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string) {
   if (type === '2d') return new MockCanvasRenderingContext2D(this) as unknown as CanvasRenderingContext2D;
   return null;
-};
+} as typeof HTMLCanvasElement.prototype.getContext;
 
 HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,fake');
 

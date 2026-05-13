@@ -48,7 +48,7 @@ describe('renderBarcode', () => {
   });
 
   it('calls bwipjs.toCanvas for a valid 12-digit UPC', async () => {
-    mockToCanvas.mockImplementation(() => {});
+    mockToCanvas.mockImplementation((() => undefined) as never);
     const result = await renderBarcode('012345678905');
     expect(mockToCanvas).toHaveBeenCalledOnce();
     expect(mockToCanvas).toHaveBeenCalledWith(
