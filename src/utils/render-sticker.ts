@@ -79,7 +79,8 @@ export async function renderStickerCanvas(
   artName: string,
   size: string,
   upc: string,
-  layout: LayoutConfig = DEFAULT_LAYOUT
+  layout: LayoutConfig = DEFAULT_LAYOUT,
+  options: { skipText?: boolean } = {}
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = STICKER_W;
@@ -124,6 +125,11 @@ export async function renderStickerCanvas(
   }
 
   // --- Text (fixed area on left side of label) ---
+  // Skipped when the export pipeline overlays selectable text natively via jsPDF.
+  if (options.skipText) {
+    return canvas;
+  }
+
   const textX = labelX + layout.labelPadding;
 
   // Art Name — uppercase, all-caps so no ascenders above cap height.

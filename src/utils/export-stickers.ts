@@ -6,6 +6,42 @@ const DPI = 300;
 const STICKER_W_IN = STICKER_W / DPI; // 4 inches
 const STICKER_H_IN = STICKER_H / DPI; // 6 inches
 
+/** Convert canvas pixels (300 DPI) → PDF inches. */
+const pxToIn = (px: number) => px / DPI;
+
+/** Convert canvas px → typographic points (jsPDF font size unit). */
+const pxToPt = (px: number) => (px * 72) / DPI;
+
+/**
+ * jsPDF built-in font fallbacks for the editable text layer.
+ * Custom fonts (Baskerville Display PT, Tw Cen MT) require embedded TTFs
+ * via pdf.addFileToVFS + pdf.addFont; see jsPDF docs to upgrade later.
+ */
+const PDF_NAME_FONT = { family: 'times', style: 'normal' as const };
+const PDF_SIZE_FONT = { family: 'helvetica', style: 'normal' as const };
+
+/** Min editable font size (pt) before giving up shrinking. */
+const PDF_FONT_FLOOR_PT = 4;
+
+/**
+ * Shrinks font size until text fits inside maxWidthIn, respecting current charSpace.
+ * Returns the final pt size that fit (>= PDF_FONT_FLOOR_PT).
+ */
+function fitPdfFontSize(
+  pdf: jsPDF,
+  text: string,
+  maxWidthIn: number,
+  startSizePt: number
+): number {
+  let size = startSizePt;
+  pdf.setFontSize(size);
+  while (size > PDF_FONT_FLOOR_PT && pdf.getTextWidth(text) > maxWidthIn) {
+    size -= 1;
+    pdf.setFontSize(size);
+  }
+  return size;
+}
+
 /**
  * Sanitizes a string for use as a filesystem path segment.
  */
@@ -89,12 +125,16 @@ export async function exportStickerPdfs(
     : await dirHandle.getDirectoryHandle(`Stickers_${stamp}`, { create: true });
 
   for (const row of eligible) {
+    // Render the background WITHOUT text — text is drawn natively below so
+    // it remains selectable / editable in PDF viewers. Label and barcode
+    // remain part of the flattened raster background (fixed, not editable).
     const stickerCanvas = await renderStickerCanvas(
       row.imageFile!,
       row.artName,
       row.size,
       row.upc,
-      layout
+      layout,
+      { skipText: true }
     );
 
     const dataUrl = canvasToPdfDataUrl(stickerCanvas);
@@ -111,6 +151,37 @@ export async function exportStickerPdfs(
     // 'PNG' format + 'FAST' compression — visually identical to 'SLOW',
     // but ~2-3× faster for full-page sticker images.
     pdf.addImage(dataUrl, 'PNG', 0, 0, STICKER_W_IN, STICKER_H_IN, undefined, 'FAST');
+
+    // --- Editable text overlay (selectable in PDF viewers) ---
+    // Geometry mirrors render-sticker.ts so the text lands inside the label.
+    const labelXIn = pxToIn(layout.labelInset);
+    const labelYIn = pxToIn(STICKER_H - layout.labelInset - layout.labelHeight);
+    const labelHIn = pxToIn(layout.labelHeight);
+    const textXIn = labelXIn + pxToIn(layout.labelPadding);
+    const textAreaWIn = pxToIn(layout.textAreaWidth);
+
+    // Art name — uppercase, wide letter-spacing (mirrors canvas '12px').
+    pdf.setFont(PDF_NAME_FONT.family, PDF_NAME_FONT.style);
+    pdf.setTextColor(17, 17, 17); // #111
+    pdf.setCharSpace(pxToIn(12));
+    const artNameUpper = row.artName.toUpperCase();
+    const namePt = fitPdfFontSize(pdf, artNameUpper, textAreaWIn, pxToPt(layout.nameFontSize));
+    const namePxAtFit = (namePt * DPI) / 72; // convert back to canvas px for baseline math
+    const nameBaselineIn = labelYIn + pxToIn(layout.labelPadding + Math.round(namePxAtFit * 0.72));
+    pdf.text(artNameUpper, textXIn, nameBaselineIn, { baseline: 'alphabetic' });
+
+    // Size — normal case, has descenders.
+    pdf.setFont(PDF_SIZE_FONT.family, PDF_SIZE_FONT.style);
+    pdf.setTextColor(68, 68, 68); // #444
+    pdf.setCharSpace(pxToIn(1));
+    const sizePt = fitPdfFontSize(pdf, row.size, textAreaWIn, pxToPt(layout.sizeFontSize));
+    const sizePxAtFit = (sizePt * DPI) / 72;
+    const sizeBaselineIn =
+      labelYIn + labelHIn - pxToIn(layout.labelPadding + Math.round(sizePxAtFit * 0.20));
+    pdf.text(row.size, textXIn, sizeBaselineIn, { baseline: 'alphabetic' });
+
+    // Reset charSpace so metadata / other ops aren't affected.
+    pdf.setCharSpace(0);
 
     // Embed basic metadata so downstream tools can identify the sticker.
     pdf.setProperties({
