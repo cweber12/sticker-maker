@@ -82,13 +82,16 @@ The full canvas image is placed at origin `(0, 0)` filling the entire page.
 
 ### Text Y baseline (from canvas top)
 
+Values shown at max font sizes (60 px / 38 px).
+
 | Text element | Canvas px | Inches | mm     |
 |--------------|-----------|--------|--------|
-| Art Name Y   | 1 683     | 5.610  | 142.45 |
-| Size Y       | 1 748     | 5.827  | 148.05 |
+| Art Name Y   | 1 664     | 5.547  | 140.88 |
+| Size Y       | 1 708     | 5.693  | 144.61 |
 
-- Art Name Y = `labelY + 100` (1583 + 100)
-- Size Y = `labelY + 165` (1583 + 165)
+- Art Name Y = `labelY + LABEL_PAD + round(nameFontSize × 0.72)` — cap top sits `LABEL_PAD` from label top
+- Size Y = `labelY + LABEL_H − LABEL_PAD − round(sizeFontSize × 0.20)` — descender bottom sits `LABEL_PAD` from label bottom
+- Both positions scale automatically if `LABEL_H`, `LABEL_PAD`, or `fitFontSize` output changes
 
 ### Letter spacing
 

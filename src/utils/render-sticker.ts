@@ -117,14 +117,18 @@ export async function renderStickerCanvas(
   const artNameUpper = artName.toUpperCase();
   const nameFontSize = fitFontSize(ctx, artNameUpper, TEXT_AREA_W, 60, NAME_FONT);
   ctx.font = `${nameFontSize}px '${NAME_FONT}'`;
-  ctx.fillText(artNameUpper, textX, labelY + 100);
+  // Baseline: LABEL_PAD from label top + cap height (≈ 72% of font size, all-caps so no ascenders above cap)
+  const nameY = labelY + LABEL_PAD + Math.round(nameFontSize * 0.72);
+  ctx.fillText(artNameUpper, textX, nameY);
 
   // Size — 9pt @ 300dpi = 38px
   ctx.letterSpacing = '1px';
   const sizeFontSize = fitFontSize(ctx, size, TEXT_AREA_W, 38, META_FONT);
   ctx.font = `${sizeFontSize}px '${META_FONT}'`;
   ctx.fillStyle = '#444444';
-  ctx.fillText(size, textX, labelY + 165);
+  // Baseline: LABEL_PAD from label bottom − descender depth (≈ 20% of font size)
+  const sizeY = labelY + LABEL_H - LABEL_PAD - Math.round(sizeFontSize * 0.20);
+  ctx.fillText(size, textX, sizeY);
 
   return canvas;
 }
