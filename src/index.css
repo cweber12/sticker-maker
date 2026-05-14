@@ -2,36 +2,47 @@
 
 /* ============================================================
    STICKER MAKER — DESIGN SYSTEM
-   Editorial print-shop aesthetic: warm paper + ink + sienna accent
+   Professional production aesthetic: clean type + calibrated brand blue
    ============================================================ */
 
 @theme {
   /* Type */
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --font-display: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
-  /* Palette — paper / ink / sienna */
-  --color-paper: #f4efe6;
-  --color-paper-2: #ece6d9;
-  --color-paper-3: #e4ddcc;
-  --color-ink: #18171a;
-  --color-ink-2: #2c2a2f;
-  --color-ink-3: #57555c;
-  --color-ink-4: #8a8790;
-  --color-rule: #d6cebd;
-  --color-rule-soft: #e6dfce;
-  --color-sienna: #c44a2c;
-  --color-sienna-2: #a83b22;
-  --color-sienna-soft: #f0d9cf;
-  --color-leaf: #4a6a3a;
-  --color-amber: #b8862a;
+  /* Brand palette */
+  --color-brand-50: rgb(236 243 249);
+  --color-brand-100: rgb(206 222 237);
+  --color-brand-200: rgb(158 192 220);
+  --color-brand-300: rgb(110 159 200);
+  --color-brand-400: rgb(80 136 185);
+  --color-brand-500: rgb(75 127 171);
+  --color-brand-600: rgb(58 100 138);
+  --color-brand-700: rgb(40 71 101);
+
+  /* Semantic palette */
+  --color-paper: #f7fafc;
+  --color-paper-2: var(--color-brand-50);
+  --color-paper-3: var(--color-brand-100);
+  --color-surface: #ffffff;
+  --color-ink: #142435;
+  --color-ink-2: #24384c;
+  --color-ink-3: #5a6b7b;
+  --color-ink-4: #81909e;
+  --color-rule: #cfdce7;
+  --color-rule-soft: #e2ebf2;
+  --color-sienna: var(--color-brand-500);
+  --color-sienna-2: var(--color-brand-600);
+  --color-sienna-soft: var(--color-brand-100);
+  --color-leaf: #2f745f;
+  --color-amber: #9c6f1f;
 }
 
 :root {
   color-scheme: light;
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: "ss01", "cv11", "tnum";
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -49,10 +60,10 @@ body,
 }
 
 body {
-  /* Subtle paper grain: a layered radial wash + faint repeating noise */
+  /* Light operational backdrop that keeps work surfaces crisp. */
   background-image:
-    radial-gradient(at 12% 8%, rgba(196, 74, 44, 0.045) 0px, transparent 55%),
-    radial-gradient(at 88% 92%, rgba(24, 23, 26, 0.05) 0px, transparent 60%);
+    radial-gradient(at 10% 0%, rgb(206 222 237 / 0.55) 0px, transparent 42%),
+    radial-gradient(at 94% 100%, rgb(158 192 220 / 0.32) 0px, transparent 48%);
   background-attachment: fixed;
 }
 
@@ -61,24 +72,22 @@ body {
    ------------------------------------------------------------ */
 .font-display {
   font-family: var(--font-display);
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 30;
-  letter-spacing: -0.02em;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .wordmark {
   font-family: var(--font-display);
-  font-weight: 400;
-  font-style: italic;
-  font-variation-settings: "SOFT" 80, "opsz" 144;
-  letter-spacing: -0.035em;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0;
 }
 
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-ink-4);
 }
@@ -92,38 +101,38 @@ body {
    ------------------------------------------------------------ */
 .card {
   position: relative;
-  background: #fbf8f1;
+  background: var(--color-surface);
   border: 1px solid var(--color-rule);
-  border-radius: 14px;
+  border-radius: 8px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 1px 2px rgba(24, 23, 26, 0.04),
-    0 12px 28px -22px rgba(24, 23, 26, 0.18);
+    0 1px 0 rgb(255 255 255 / 0.72) inset,
+    0 1px 2px rgb(20 36 53 / 0.05),
+    0 14px 30px -24px rgb(40 71 101 / 0.28);
 }
 
 .card-flat {
-  background: #fbf8f1;
+  background: var(--color-surface);
   border: 1px solid var(--color-rule);
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .dropzone {
   position: relative;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1.5px dashed var(--color-rule);
   background:
     repeating-linear-gradient(
       45deg,
       transparent 0 14px,
-      rgba(24, 23, 26, 0.018) 14px 15px
+      rgb(40 71 101 / 0.025) 14px 15px
     ),
-    #faf6ec;
+    var(--color-surface);
   transition: border-color 180ms ease, background-color 180ms ease,
     transform 180ms ease;
 }
 .dropzone:hover {
   border-color: var(--color-sienna);
-  background-color: #f7f0e0;
+  background-color: var(--color-brand-50);
 }
 .dropzone:focus-within {
   border-color: var(--color-sienna);
@@ -134,20 +143,20 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.125rem;
-  border-radius: 10px;
-  background: var(--color-ink);
-  color: #fbf8f1;
+  border-radius: 8px;
+  background: var(--color-brand-600);
+  color: white;
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  border: 1px solid var(--color-ink);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 6px 14px -8px rgba(24, 23, 26, 0.5);
+  border: 1px solid var(--color-brand-600);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 8px 16px -10px rgb(40 71 101 / 0.65);
   transition: transform 120ms ease, background-color 160ms ease;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-sienna);
-  border-color: var(--color-sienna);
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
 }
 .btn-primary:active:not(:disabled) {
   transform: translateY(1px);
@@ -162,7 +171,7 @@ body {
   align-items: center;
   gap: 0.375rem;
   padding: 0.375rem 0.625rem;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-ink-3);
@@ -181,12 +190,12 @@ body {
   appearance: none;
   width: 100%;
   padding: 0.5rem 2rem 0.5rem 0.75rem;
-  border-radius: 9px;
+  border-radius: 7px;
   border: 1px solid var(--color-rule);
   background:
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'><path d='M3 5l3 3 3-3' stroke='%2357555c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>")
       no-repeat right 0.625rem center / 12px,
-    #fbf8f1;
+    var(--color-surface);
   font-size: 0.8125rem;
   color: var(--color-ink);
   transition: border-color 140ms ease, box-shadow 140ms ease;
@@ -194,7 +203,7 @@ body {
 .field-select:focus {
   outline: none;
   border-color: var(--color-sienna);
-  box-shadow: 0 0 0 3px rgba(196, 74, 44, 0.12);
+  box-shadow: 0 0 0 3px rgb(75 127 171 / 0.15);
 }
 
 /* Checkbox refinement */
@@ -204,7 +213,7 @@ input[type="checkbox"].chk {
   height: 16px;
   border-radius: 4px;
   border: 1.25px solid var(--color-ink-4);
-  background: #fbf8f1;
+  background: var(--color-surface);
   display: inline-grid;
   place-content: center;
   cursor: pointer;
@@ -221,7 +230,7 @@ input[type="checkbox"].chk:checked::after {
   content: "";
   width: 9px;
   height: 9px;
-  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'><path d='M2.5 6.2l2.4 2.4 5-5.2' stroke='%23fbf8f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'><path d='M2.5 6.2l2.4 2.4 5-5.2' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>")
     center / contain no-repeat;
 }
 
@@ -243,8 +252,8 @@ input[type="checkbox"].chk:checked::after {
     border-color 160ms ease;
 }
 .step-chip[data-state="active"] {
-  background: var(--color-ink);
-  color: #fbf8f1;
+  background: var(--color-brand-600);
+  color: white;
 }
 .step-chip[data-state="done"] {
   color: var(--color-ink);
@@ -268,7 +277,7 @@ input[type="checkbox"].chk:checked::after {
 }
 .step-chip[data-state="done"] .step-num,
 .step-chip[data-state="pending"] .step-num {
-  background: rgba(24, 23, 26, 0.06);
+  background: rgb(40 71 101 / 0.08);
 }
 
 /* ------------------------------------------------------------

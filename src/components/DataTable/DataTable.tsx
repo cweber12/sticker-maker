@@ -52,7 +52,7 @@ export function DataTable() {
               placeholder="Filter rows…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-[12.5px] rounded-lg border border-[var(--color-rule)] bg-[#fbf8f1] text-[var(--color-ink)] placeholder:text-[var(--color-ink-4)] focus:outline-none focus:border-[var(--color-sienna)] focus:ring-2 focus:ring-[var(--color-sienna)]/15 w-[180px]"
+              className="pl-8 pr-3 py-1.5 text-[12.5px] rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-4)] focus:outline-none focus:border-[var(--color-sienna)] focus:ring-2 focus:ring-[var(--color-sienna)]/15 w-[180px]"
             />
           </div>
           <button onClick={() => selectAll(!allSelected)} className="btn-ghost">
@@ -64,7 +64,7 @@ export function DataTable() {
       {/* Scroll body */}
       <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
         <table className="w-full text-[13px]">
-          <thead className="sticky top-0 z-10 bg-[#fbf8f1]/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur">
             <tr className="border-b border-[var(--color-rule)]">
               <th className="w-10 px-4 py-3 text-left">
                 <input

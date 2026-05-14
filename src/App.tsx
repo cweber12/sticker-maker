@@ -63,7 +63,7 @@ function App() {
                 <span className="wordmark text-[26px] leading-none text-[var(--color-ink)]">
                   Sticker
                 </span>
-                <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-[var(--color-ink-4)] pt-1">
+                <span className="font-mono text-[10.5px] tracking-[0.1em] uppercase text-[var(--color-ink-4)] pt-1">
                   / Maker
                 </span>
               </div>
@@ -194,7 +194,7 @@ function App() {
 function Mark() {
   return (
     <span
-      className="relative flex h-9 w-9 items-center justify-center rounded-[10px] bg-[var(--color-ink)] text-[#fbf8f1]"
+      className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-brand-700)] text-white"
       aria-hidden
     >
       <span
@@ -222,11 +222,11 @@ function Hero() {
   return (
     <section className="reveal mb-12 max-w-[680px]">
       <p className="eyebrow mb-4">Print-ready · 4×6 in · 300 dpi</p>
-      <h1 className="font-display text-[44px] sm:text-[56px] lg:text-[68px] leading-[0.95] tracking-[-0.025em] text-[var(--color-ink)]">
+      <h1 className="font-display text-[44px] sm:text-[56px] lg:text-[68px] leading-[0.95] text-[var(--color-ink)]">
         From spreadsheet
         <br />
         to{' '}
-        <span className="italic" style={{ fontVariationSettings: '"SOFT" 90, "opsz" 144' }}>
+        <span className="text-[var(--color-brand-600)]">
           shelf-ready
         </span>{' '}
         labels.
@@ -254,7 +254,7 @@ function SectionBlock({
     <section className="reveal">
       <header className="mb-4 flex items-end justify-between gap-6 border-b border-[var(--color-rule-soft)] pb-3">
         <div className="flex items-baseline gap-4 min-w-0">
-          <span className="font-mono text-[11px] font-medium tracking-[0.18em] text-[var(--color-sienna)]">
+          <span className="font-mono text-[11px] font-medium tracking-[0.1em] text-[var(--color-sienna)]">
             {number}
           </span>
           <h2
@@ -276,7 +276,7 @@ function SectionBlock({
 function Footer() {
   return (
     <footer className="mt-20 pt-6 border-t border-[var(--color-rule-soft)] flex items-center justify-between text-[11px] text-[var(--color-ink-4)]">
-      <span className="font-mono tracking-[0.14em] uppercase">Sticker Maker</span>
+      <span className="font-mono tracking-[0.1em] uppercase">Sticker Maker</span>
       <span>Runs locally · No data leaves your browser</span>
     </footer>
   );
