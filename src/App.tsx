@@ -177,7 +177,7 @@ function App() {
               <SectionBlock
                 number="06"
                 title="Export print-ready PDFs"
-                hint="Each sticker exports at 4×6 in / 300 dpi with a UPC-A barcode."
+                hint="Each sticker exports at 4×6 in / 300 dpi with UPC-A or Diamond Art logo mode."
               >
                 <ExportPanel />
               </SectionBlock>

@@ -6,10 +6,12 @@ import type { ExportStatus } from '@/types';
 export function ExportPanel() {
   const rows = useStickerStore((s) => s.rows);
   const layout = useStickerStore((s) => s.layout);
+  const diamondArtMarkMode = useStickerStore((s) => s.diamondArtMarkMode);
   const [status, setStatus] = useState<ExportStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [exportCount, setExportCount] = useState(0);
   const [editableText, setEditableText] = useState(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const selectedWithImages = rows.filter((r) => r.selected && r.imageFile);
   const selectedCount = rows.filter((r) => r.selected).length;
@@ -19,8 +21,15 @@ export function ExportPanel() {
   const handleExport = async () => {
     setStatus('exporting');
     setErrorMsg('');
+    setWarnings([]);
     try {
-      await exportStickerPdfs(rows, layout, { editableText });
+      const nextWarnings = new Set<string>();
+      await exportStickerPdfs(rows, layout, {
+        editableText,
+        diamondArtMarkMode,
+        onWarning: (message) => nextWarnings.add(message),
+      });
+      setWarnings([...nextWarnings]);
       setExportCount(selectedWithImages.length);
       setStatus('done');
     } catch (err) {
@@ -34,17 +43,17 @@ export function ExportPanel() {
       <div className="flex flex-wrap items-center justify-between gap-5">
         <div className="space-y-1 min-w-0">
           <div className="flex items-baseline gap-3">
-            <span className="font-display text-[24px] leading-none text-[var(--color-ink)] num-tabular">
+            <span className="font-display text-[24px] leading-none text-ink num-tabular">
               {selectedWithImages.length}
             </span>
-            <span className="text-[13px] text-[var(--color-ink-3)]">
+            <span className="text-[13px] text-ink-3">
               sticker{selectedWithImages.length !== 1 ? 's' : ''} ready to export
             </span>
           </div>
-          <div className="text-[12.5px] text-[var(--color-ink-4)]">
+          <div className="text-[12.5px] text-ink-4">
             {selectedWithImages.length === 0 && 'Select rows that have images attached.'}
             {missingImages > 0 && (
-              <span className="text-[var(--color-amber)]">
+              <span className="text-amber">
                 {missingImages} selected {missingImages === 1 ? 'row is' : 'rows are'} missing an image
               </span>
             )}
@@ -53,13 +62,13 @@ export function ExportPanel() {
 
         <div className="flex items-center gap-3">
           {status === 'done' && (
-            <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-leaf)]">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-leaf)]" />
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] text-leaf">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-leaf" />
               {exportCount} PDF{exportCount !== 1 ? 's' : ''} exported
             </span>
           )}
           {status === 'error' && (
-            <span className="text-[12.5px] text-[var(--color-sienna)] max-w-[280px] truncate" title={errorMsg}>
+            <span className="text-[12.5px] text-(--color-sienna) max-w-70 truncate" title={errorMsg}>
               {errorMsg}
             </span>
           )}
@@ -87,6 +96,15 @@ export function ExportPanel() {
 
       {/* Text mode toggle */}
       <div className="pt-4 border-t border-rule-soft space-y-3">
+        {warnings.length > 0 && (
+          <div className="flex gap-2 rounded-md border border-amber bg-amber/10 px-3 py-2 text-[12px] text-ink leading-snug">
+            <svg className="size-3.5 mt-0.5 shrink-0 text-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <span>{warnings.join(' ')}</span>
+          </div>
+        )}
+
         <div className="text-[11px] uppercase tracking-[0.14em] text-ink-4">
           Text mode
         </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { StickerRow, ColumnMap, RawRow, LayoutConfig } from '@/types';
+import type { StickerRow, ColumnMap, RawRow, LayoutConfig, DiamondArtMarkMode } from '@/types';
 import { DEFAULT_LAYOUT } from '@/utils/render-sticker';
 
 interface StickerStore {
@@ -13,6 +13,9 @@ interface StickerStore {
 
   // Sticker layout (adjustable in Layout Editor)
   layout: LayoutConfig;
+
+  // Global mark mode for Diamond Art rows
+  diamondArtMarkMode: DiamondArtMarkMode;
 
   // Actions — spreadsheet
   setSpreadsheetData: (headers: string[], rows: RawRow[]) => void;
@@ -31,6 +34,9 @@ interface StickerStore {
   setLayout: (patch: Partial<LayoutConfig>) => void;
   resetLayout: () => void;
 
+  // Actions — Diamond Art mark mode
+  setDiamondArtMarkMode: (mode: DiamondArtMarkMode) => void;
+
   // Actions — reset
   clearAll: () => void;
 }
@@ -41,6 +47,7 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   columnMap: null,
   rows: [],
   layout: { ...DEFAULT_LAYOUT },
+  diamondArtMarkMode: 'barcode',
 
   setSpreadsheetData: (headers, rawRows) =>
     set({ rawHeaders: headers, rawRows, columnMap: null, rows: [] }),
@@ -118,5 +125,13 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
 
   resetLayout: () => set({ layout: { ...DEFAULT_LAYOUT } }),
 
-  clearAll: () => set({ rawHeaders: [], rawRows: [], columnMap: null, rows: [] }),
+  setDiamondArtMarkMode: (diamondArtMarkMode) => set({ diamondArtMarkMode }),
+
+  clearAll: () => set({
+    rawHeaders: [],
+    rawRows: [],
+    columnMap: null,
+    rows: [],
+    diamondArtMarkMode: 'barcode',
+  }),
 }));

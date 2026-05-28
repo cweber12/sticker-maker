@@ -1,6 +1,13 @@
 import { jsPDF } from 'jspdf';
-import type { StickerRow, LayoutConfig } from '@/types';
-import { renderStickerCanvas, STICKER_W, STICKER_H, DEFAULT_LAYOUT } from './render-sticker';
+import type { StickerRow, LayoutConfig, DiamondArtMarkMode } from '@/types';
+import {
+  renderStickerCanvas,
+  STICKER_W,
+  STICKER_H,
+  DEFAULT_LAYOUT,
+  isDiamondArtSize,
+  loadDiamondLogo,
+} from './render-sticker';
 import { registerPdfFonts } from './pdf-fonts';
 
 const DPI = 300;
@@ -113,6 +120,10 @@ export interface ExportOptions {
    * the exact preview fonts are preserved; nothing in the PDF is selectable.
    */
   editableText?: boolean;
+  /** Global right-mark mode applied only to Diamond Art rows. */
+  diamondArtMarkMode?: DiamondArtMarkMode;
+  /** Optional callback for non-blocking export warnings. */
+  onWarning?: (message: string) => void;
 }
 
 export async function exportStickerPdfs(
@@ -121,6 +132,7 @@ export async function exportStickerPdfs(
   options: ExportOptions = {}
 ): Promise<void> {
   const editableText = options.editableText ?? false;
+  const diamondArtMarkMode = options.diamondArtMarkMode ?? 'barcode';
   const eligible = rows.filter((r) => r.selected && r.imageFile);
 
   if (eligible.length === 0) {
@@ -150,7 +162,11 @@ export async function exportStickerPdfs(
       row.size,
       row.upc,
       layout,
-      { skipText: editableText }
+      {
+        skipText: editableText,
+        diamondArtMarkMode,
+        onWarning: options.onWarning,
+      }
     );
 
     const dataUrl = canvasToPdfDataUrl(stickerCanvas);
@@ -177,9 +193,20 @@ export async function exportStickerPdfs(
       // Geometry mirrors render-sticker.ts so the text lands inside the label.
       const labelXIn = pxToIn(layout.labelInset);
       const labelYIn = pxToIn(STICKER_H - layout.labelInset - layout.labelHeight);
+      const labelWIn = pxToIn(STICKER_W - layout.labelInset * 2);
       const labelHIn = pxToIn(layout.labelHeight);
       const textXIn = labelXIn + pxToIn(layout.labelPadding);
-      const textAreaWIn = pxToIn(layout.textAreaWidth);
+
+      let textAreaWIn = pxToIn(layout.textAreaWidth);
+      if (diamondArtMarkMode === 'logo' && isDiamondArtSize(row.size)) {
+        const diamondLogo = await loadDiamondLogo();
+        if (diamondLogo) {
+          const logoOuterMarginPx = layout.labelPadding * 0.75;
+          const logoBoxPx = Math.max(1, layout.labelHeight - logoOuterMarginPx * 2);
+          const logoXIn = labelXIn + labelWIn - pxToIn(logoOuterMarginPx + logoBoxPx);
+          textAreaWIn = Math.max(0.01, logoXIn - pxToIn(layout.labelPadding) - textXIn);
+        }
+      }
 
       // Art name — uppercase, wide letter-spacing (mirrors canvas '12px').
       pdf.setFont(nameFamily, 'normal');

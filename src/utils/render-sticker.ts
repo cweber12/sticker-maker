@@ -1,5 +1,5 @@
 import bwipjs from 'bwip-js';
-import type { LayoutConfig } from '@/types';
+import type { LayoutConfig, DiamondArtMarkMode } from '@/types';
 
 // Sticker dimensions: 4×6 in at 300 DPI
 export const STICKER_W = 1200;
@@ -10,6 +10,7 @@ export const DESIGN_UNIT_PX = 3.82;
 
 export const NAME_FONT = 'Baskerville Display PT';
 export const META_FONT = 'Tw Cen MT';
+export const DIAMOND_LOGO_PATH = '/diamond_logo.PNG';
 
 /**
  * Default layout — matches the values documented in docs/unit-conversions.md.
@@ -27,6 +28,28 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
 
 /** Min font size px floor when shrinking text to fit. */
 const FONT_FLOOR = 10;
+const DIAMOND_ART_RE = /diamond\s*(art|painting)/i;
+
+let diamondLogoPromise: Promise<HTMLImageElement | null> | null = null;
+
+export function isDiamondArtSize(size: string): boolean {
+  return DIAMOND_ART_RE.test(size);
+}
+
+export async function loadDiamondLogo(): Promise<HTMLImageElement | null> {
+  if (diamondLogoPromise) {
+    return diamondLogoPromise;
+  }
+
+  diamondLogoPromise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = DIAMOND_LOGO_PATH;
+  });
+
+  return diamondLogoPromise;
+}
 
 /**
  * Renders a UPC-A barcode onto an offscreen canvas and returns it as ImageBitmap.
@@ -80,7 +103,11 @@ export async function renderStickerCanvas(
   size: string,
   upc: string,
   layout: LayoutConfig = DEFAULT_LAYOUT,
-  options: { skipText?: boolean } = {}
+  options: {
+    skipText?: boolean;
+    diamondArtMarkMode?: DiamondArtMarkMode;
+    onWarning?: (message: string) => void;
+  } = {}
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = STICKER_W;
@@ -111,17 +138,47 @@ export async function renderStickerCanvas(
   const labelY = STICKER_H - layout.labelInset - layout.labelHeight;
   const labelW = STICKER_W - layout.labelInset * 2;
   const labelH = layout.labelHeight;
+  const isDiamondArt = isDiamondArtSize(size);
+  const wantsDiamondLogo = isDiamondArt && options.diamondArtMarkMode === 'logo';
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(labelX, labelY, labelW, labelH);
 
-  // --- Barcode (right side of label — no padding, flush to label top/right/bottom edges) ---
-  // Rendered at barcodeZoneWidth × labelHeight (default ≈ 100 × 45 design units).
-  const barcodeCanvas = await renderBarcode(upc);
-  const barcodeX = labelX + labelW - layout.barcodeZoneWidth; // flush to right edge
+  let usesLogo = false;
+  let textAreaWidth = layout.textAreaWidth;
 
-  if (barcodeCanvas) {
-    ctx.drawImage(barcodeCanvas, barcodeX, labelY, layout.barcodeZoneWidth, labelH);
+  if (wantsDiamondLogo) {
+    const diamondLogo = await loadDiamondLogo();
+    if (diamondLogo) {
+      const logoOuterMargin = layout.labelPadding * 0.75;
+      const logoBox = Math.max(1, labelH - logoOuterMargin * 2);
+      const logoX = labelX + labelW - logoOuterMargin - logoBox;
+      const logoY = labelY + logoOuterMargin;
+      const logoScale = Math.min(logoBox / diamondLogo.width, logoBox / diamondLogo.height);
+      const drawW = Math.max(1, diamondLogo.width * logoScale);
+      const drawH = Math.max(1, diamondLogo.height * logoScale);
+      const drawX = logoX + (logoBox - drawW) / 2;
+      const drawY = logoY + (logoBox - drawH) / 2;
+
+      // Diamond logo mode keeps equal top/bottom/right margins and a single
+      // inter-column gap equal to label padding (no doubled padding).
+      ctx.drawImage(diamondLogo, drawX, drawY, drawW, drawH);
+      textAreaWidth = Math.max(1, logoX - layout.labelPadding - (labelX + layout.labelPadding));
+      usesLogo = true;
+    } else {
+      options.onWarning?.('Diamond logo could not be loaded. Falling back to barcode for this sticker.');
+    }
+  }
+
+  if (!usesLogo) {
+    // --- Barcode (right side of label — no padding, flush to label top/right/bottom edges) ---
+    // Rendered at barcodeZoneWidth × labelHeight (default ≈ 100 × 45 design units).
+    const barcodeCanvas = await renderBarcode(upc);
+    const barcodeX = labelX + labelW - layout.barcodeZoneWidth; // flush to right edge
+
+    if (barcodeCanvas) {
+      ctx.drawImage(barcodeCanvas, barcodeX, labelY, layout.barcodeZoneWidth, labelH);
+    }
   }
 
   // --- Text (fixed area on left side of label) ---
@@ -137,7 +194,7 @@ export async function renderStickerCanvas(
   ctx.letterSpacing = '12px';
   const artNameUpper = artName.toUpperCase();
   const nameFontSize = fitFontSize(
-    ctx, artNameUpper, layout.textAreaWidth, layout.nameFontSize, NAME_FONT
+    ctx, artNameUpper, textAreaWidth, layout.nameFontSize, NAME_FONT
   );
   ctx.font = `${nameFontSize}px '${NAME_FONT}'`;
   // Baseline: labelPadding from label top + cap height (≈ 72% of font size).
@@ -147,7 +204,7 @@ export async function renderStickerCanvas(
   // Size — non-caps, has descenders.
   ctx.letterSpacing = '1px';
   const sizeFontSize = fitFontSize(
-    ctx, size, layout.textAreaWidth, layout.sizeFontSize, META_FONT
+    ctx, size, textAreaWidth, layout.sizeFontSize, META_FONT
   );
   ctx.font = `${sizeFontSize}px '${META_FONT}'`;
   ctx.fillStyle = '#444444';

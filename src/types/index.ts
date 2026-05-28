@@ -22,6 +22,8 @@ export interface ColumnMap {
 
 export type ExportStatus = 'idle' | 'exporting' | 'done' | 'error';
 
+export type DiamondArtMarkMode = 'barcode' | 'logo';
+
 /**
  * Adjustable layout values for the 4×6 in @ 300 dpi sticker.
  * All dimensions stored in canvas pixels (1200×1800 canvas).

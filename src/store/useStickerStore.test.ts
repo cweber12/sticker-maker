@@ -14,6 +14,7 @@ beforeEach(() => {
     columnMap: null,
     rows: [],
     layout: { ...DEFAULT_LAYOUT },
+    diamondArtMarkMode: 'barcode',
   });
 });
 
@@ -155,5 +156,10 @@ describe('layout actions', () => {
       useStickerStore.getState().resetLayout();
     });
     expect(useStickerStore.getState().layout).toEqual(DEFAULT_LAYOUT);
+  });
+
+  it('setDiamondArtMarkMode updates the global mode', () => {
+    act(() => useStickerStore.getState().setDiamondArtMarkMode('logo'));
+    expect(useStickerStore.getState().diamondArtMarkMode).toBe('logo');
   });
 });

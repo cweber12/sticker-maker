@@ -61,7 +61,7 @@ describe('ExportPanel', () => {
     expect(mockExport).toHaveBeenCalledWith(
       expect.any(Array),
       expect.any(Object),
-      { editableText: false }
+      expect.objectContaining({ editableText: false, diamondArtMarkMode: 'barcode' })
     );
   });
 
@@ -77,7 +77,7 @@ describe('ExportPanel', () => {
     expect(mockExport).toHaveBeenCalledWith(
       expect.any(Array),
       expect.any(Object),
-      { editableText: true }
+      expect.objectContaining({ editableText: true, diamondArtMarkMode: 'barcode' })
     );
   });
 
