@@ -202,8 +202,10 @@ export async function exportStickerPdfs(
         const diamondLogo = await loadDiamondLogo();
         if (diamondLogo) {
           const logoOuterMarginPx = layout.labelPadding * 0.75;
-          const logoBoxPx = Math.max(1, layout.labelHeight - logoOuterMarginPx * 2);
-          const logoXIn = labelXIn + labelWIn - pxToIn(logoOuterMarginPx + logoBoxPx);
+          const logoHPx = Math.max(1, layout.labelHeight - logoOuterMarginPx * 2);
+          const logoRatio = diamondLogo.width / Math.max(diamondLogo.height, 1);
+          const logoWPx = Math.max(1, logoHPx * logoRatio);
+          const logoXIn = labelXIn + labelWIn - pxToIn(logoOuterMarginPx + logoWPx);
           textAreaWIn = Math.max(0.01, logoXIn - pxToIn(layout.labelPadding) - textXIn);
         }
       }

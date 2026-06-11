@@ -254,8 +254,10 @@ function StickerLayoutPlaceholder({
   const nameSize    = `${(layout.nameFontSize / STICKER_W) * 100}cqw`;
   const sizeSize    = `${(layout.sizeFontSize / STICKER_W) * 100}cqw`;
   const barcodeWCqw = `${(layout.barcodeZoneWidth / STICKER_W) * 100}cqw`;
-  const logoBoxPx = Math.max(1, layout.labelHeight - (layout.labelPadding * 0.75) * 2);
-  const logoBoxCqw = `${(logoBoxPx / STICKER_W) * 100}cqw`;
+  const logoHPx = Math.max(1, layout.labelHeight - (layout.labelPadding * 0.75) * 2);
+  const logoRatio = logoImg ? logoImg.width / Math.max(logoImg.height, 1) : 1;
+  const logoWPx = Math.max(1, logoHPx * logoRatio);
+  const logoWCqw = `${(logoWPx / STICKER_W) * 100}cqw`;
   const useLogo = wantsLogo && !!logoImg;
 
   return (
@@ -310,16 +312,16 @@ function StickerLayoutPlaceholder({
         {/* Right: barcode zone — no padding, flush to label top/right/bottom */}
         {useLogo ? (
           <div
-            className="shrink-0 grid place-items-center"
+            className="shrink-0 overflow-hidden"
             style={{
-              width: logoBoxCqw,
+              width: logoWCqw,
               marginTop: logoOuterMarginCqw,
               marginBottom: logoOuterMarginCqw,
               marginRight: logoOuterMarginCqw,
               marginLeft: labelPadCqw,
             }}
           >
-            <img src={logoImg.src} alt="Diamond logo" className="max-w-full max-h-full object-contain" />
+            <img src={logoImg.src} alt="Diamond logo" className="w-full h-full object-contain" />
           </div>
         ) : (
           <div className="shrink-0 overflow-hidden" style={{ width: barcodeWCqw }}>

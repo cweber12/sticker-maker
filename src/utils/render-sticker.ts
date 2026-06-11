@@ -150,19 +150,17 @@ export async function renderStickerCanvas(
   if (wantsDiamondLogo) {
     const diamondLogo = await loadDiamondLogo();
     if (diamondLogo) {
-      const logoOuterMargin = layout.labelPadding * 0.75;
-      const logoBox = Math.max(1, labelH - logoOuterMargin * 2);
-      const logoX = labelX + labelW - logoOuterMargin - logoBox;
+      const logoOuterMargin = layout.labelPadding;
+      const logoH = Math.max(1, labelH - logoOuterMargin * 2);
+      const logoRatio = diamondLogo.width / Math.max(diamondLogo.height, 1);
+      const logoW = Math.max(1, logoH * logoRatio);
+      const logoX = labelX + labelW - logoOuterMargin - logoW;
       const logoY = labelY + logoOuterMargin;
-      const logoScale = Math.min(logoBox / diamondLogo.width, logoBox / diamondLogo.height);
-      const drawW = Math.max(1, diamondLogo.width * logoScale);
-      const drawH = Math.max(1, diamondLogo.height * logoScale);
-      const drawX = logoX + (logoBox - drawW) / 2;
-      const drawY = logoY + (logoBox - drawH) / 2;
 
       // Diamond logo mode keeps equal top/bottom/right margins and a single
       // inter-column gap equal to label padding (no doubled padding).
-      ctx.drawImage(diamondLogo, drawX, drawY, drawW, drawH);
+      // Width expands to preserve the source image aspect ratio.
+      ctx.drawImage(diamondLogo, logoX, logoY, logoW, logoH);
       textAreaWidth = Math.max(1, logoX - layout.labelPadding - (labelX + layout.labelPadding));
       usesLogo = true;
     } else {
